@@ -1,0 +1,192 @@
+---
+title: "Climate adaptive habitat connectivity"
+description: |
+  Using biomodelos as the base layers
+author:
+  - name: Lei Song
+    url: https://github.com/LLeiSong
+    affiliation: University of California, Santa Barbara
+output: 
+  distill::distill_article:
+    toc: true
+    toc_depth: '2'
+header-includes: 
+  \usepackage{caption}
+  \renewcommand{\figurename}{Fig.} 
+  \renewcommand{\thefigure}{S\arabic{figure}}
+  \renewcommand{\thetable}{S\arabic{table}}
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+library(ggplot2)
+library(ggpubr)
+
+root_dir <- here::here()
+fname <- file.path(root_dir, "data/sp_numbers.csv")
+dispersal_path <- file.path(
+  root_dir, "data/dispersal", "species_dispersal_rate.csv")
+data_dir <- file.path(root_dir, "data/mamiferos")
+cur_path <- "ensembles/current/MAXENT/%s_10_MAXENT.tif"
+fut_paths <- sprintf(
+  "%s/2021-2040_ssp%s_10.tif", 
+  "ensembles/future/MAXENT/future_ensemble", c("126", "585"))
+aoi_path <- "interest_areas/shape_M.shp"
+crs_analysis <- "ESRI:54030"
+```
+
+## Check the current and future ranges
+
+```{r}
+## Later reload the table from file
+sp_numbers_all <- read.csv(fname)
+
+# Load boundary
+col_real <- st_read(file.path(root_dir, "data/colombia.geojson")) %>% 
+  st_transform(crs_analysis)
+col <- vect(col_real) %>% ext()
+
+# Summarize the species
+for (ssp in c("ssp126", "ssp585")){
+  sp_numbers <- sp_numbers_all[sp_numbers_all$ssp == ssp, ]
+  nums <- c(
+    (sp_numbers %>% filter(aoi_area < 1e6) %>% nrow()) / nrow(sp_numbers) * 100,
+    (sp_numbers %>% filter(aoi_area >= 1e6 & IoU > 50) %>% nrow()) / 
+      nrow(sp_numbers) * 100,
+    (sp_numbers %>% filter(aoi_area >= 1e6 & IoU <= 50) %>% nrow()) / 
+      nrow(sp_numbers) * 100)
+  names(nums) <- c("small", "large_health", "large_fragment")
+  
+  # Make a figure
+  ggplot(data = sp_numbers) +
+    geom_vline(xintercept = 1, color = "purple", linetype = "dashed") + 
+    geom_segment(aes(x = 1, xend = 10, y = 50, yend = 50), 
+                 color = "purple", linetype = "dashed") +
+    geom_point(aes(x = aoi_area / 1e6, y = IoU, 
+                   color = cur_area / 1e6, size = fut_area / 1e6)) +
+    geom_smooth(aes(x = aoi_area / 1e6, y = IoU)) + xlim(0, 10) + 
+    scale_color_viridis_c(expression(paste("Current area(1e"^6, ")")),
+                          guide = guide_colorbar(title.vjust = 1)) +
+    scale_size_area(expression(paste("Future area(1e"^6, ")"))) +
+    xlab(expression(paste("AOI area (1e"^6, ")"))) + ylab("IoU") +
+    annotate("text", label = paste0(round(nums, 0), "%"), 
+             x = c(0, 9, 9), y = c(90, 55, 12), size = 5, fontface = "bold") +
+    theme_pubclean() +
+    theme(legend.box = "vertical",
+          axis.text = element_text(size = 11),
+          axis.title = element_text(size = 12))
+  
+  ggsave(sprintf("results/area_distribution_%s.png", ssp), 
+         width = 6, height = 7, bg = "white")
+  
+  # Examine the overall current and future distribution
+  sp_selected <- sp_numbers %>% filter(IoU <= 50 & aoi_area >= 1e6)
+  
+  cur_diversity <- lapply(sp_selected$species, function(sp){
+    cur_fname <- file.path(data_dir, sp, sprintf(cur_path, gsub("\\.", "_", sp)))
+    rast(cur_fname) %>% project(crs_analysis) %>% extend(col)
+  })
+  cur_diversity <- do.call(c, cur_diversity)
+  cur_diversity <- sum(cur_diversity, na.rm = TRUE)
+  
+  fut_diversity <- lapply(sp_selected$species, function(sp){
+    fut_path <- fut_paths[grep(ssp, fut_paths)]
+    fut_fname <- file.path(data_dir, sp, fut_path)
+    aoi_fname <- file.path(data_dir, sp, aoi_path)
+    
+    # Get potential dispersal distance
+    dispersal_rate <- read.csv(dispersal_path) %>% 
+      filter(species == gsub("\\.", " ", sp)) %>% pull(dispersal_rate)
+    if (length(dispersal_rate) == 0) {
+      dispersal_rate <- read.csv(dispersal_path) %>% 
+        pull(dispersal_rate) %>% median()
+    }
+    dis_dist <- dispersal_rate * 40 * 1000 # in meter
+    
+    aoi <- st_read(aoi_fname) %>% st_transform(crs_analysis)
+    aoi_spread <- st_buffer(aoi, dis_dist)
+    
+    mask(rast(fut_fname) %>% project(crs_analysis), aoi_spread) %>% extend(col)
+  })
+  fut_diversity <- do.call(c, fut_diversity)
+  fut_diversity <- sum(fut_diversity, na.rm = TRUE)
+  
+  diversity <- c(cur_diversity, fut_diversity)
+  diversity <- mask(diversity, col_real) %>% trim()
+  names(diversity) <- c("Current", "2021-2040")
+  
+  ggplot() +
+    geom_spatraster(data = diversity) +
+    scale_fill_whitebox_c(
+      name = "Diversity",
+      palette = "muted",
+      n.breaks = 8,
+      guide = guide_legend(reverse = TRUE)) + 
+    facet_wrap(~lyr) + 
+    theme_void() +
+    theme(title = element_text(size = 14),
+          legend.text = element_text(size = 14),
+          strip.text = element_text(size = 14))
+  
+  ggsave(sprintf("results/diversity_%s.png", ssp), 
+         width = 8, height = 5, bg = "white")
+}
+```
+
+
+## Set up the HPC environment
+
+**Step1**. Clone the previous conda environment sdm, which is ready to use R for spatial analysis.
+
+```
+conda create --name conn --clone sdm
+conda activate conn
+```
+
+**Step2**. Install Julia and Omniscape package
+
+```
+# Install Juliaup manager and julia
+conda install -c conda-forge juliaup
+juliaup add <version> # or juliaup add release
+juliaup config channelsymlinks true
+
+# Get the Julia path for R call later
+# ~/anaconda3/envs/conn/bin/julia-1.11.3
+which julia-1.11.3 # or which julia-release
+
+# Install customized omniscape
+using Pkg
+]
+
+# Extra steps because of the issue in ArchGDAL
+add PROJ_jll@901.300 GDAL_jll@301.900
+add ArchGDAL
+
+# Link and compile Omniscape
+dev /home/lsong/Omniscape.jl
+using Omniscape
+
+# Add other packages for R
+add Suppressor
+add RCall
+
+# Log out of conda if necessary
+conda deactivate
+```
+
+## Omniscape
+
+A few terms:
+
+**Source strength**: Similar to conductance but represents the number of individuals originating from a given pixel.
+
+**Resistance layer**: The inverse of conductance, representing the difficulty of movement across the landscape.
+
+**Target pixel**: The central pixel within the circular window.
+
+**Source pixels**: All pixels within the circular window that exceed the defined source strength threshold. They are identified similarly to the target pixel.
+
+Omniscape essentially operates Circuitscape in advanced mode, treating the central target pixel as the ground and the source pixels as current sources to model connectivity dynamics.

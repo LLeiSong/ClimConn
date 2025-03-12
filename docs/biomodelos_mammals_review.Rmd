@@ -1,0 +1,301 @@
+---
+title: "Current and future range maps of mammals made by biomodelos"
+description: |
+  Quick review
+author:
+  - name: Lei Song
+    url: https://github.com/LLeiSong
+    affiliation: University of California, Santa Barbara
+output: 
+  distill::distill_article:
+    toc: true
+    toc_depth: '2'
+header-includes: 
+  \usepackage{caption}
+  \renewcommand{\figurename}{Fig.} 
+  \renewcommand{\thefigure}{S\arabic{figure}}
+  \renewcommand{\thetable}{S\arabic{table}}
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(ggplot2)
+library(terra)
+library(sf)
+library(dplyr)
+library(ggpubr)
+library(tidyterra)
+terraOptions(progress=0)
+
+# Set directories and paths
+data_dir <- here("data/mamiferos")
+species_list <- list.files(data_dir)
+cur_path <- "ensembles/current/MAXENT/%s_10_MAXENT.tif"
+fut_path <- "ensembles/future/MAXENT/future_ensemble/2021-2040_ssp126_10.tif"
+aoi_path <- "interest_areas/shape_M.shp"
+
+col <- st_read(here("data/colombia.geojson"))
+fname <- here("data/sp_numbers.csv")
+sp_numbers <- read.csv(fname)
+```
+
+## Some example species
+
+To keep the explanation straightforward, we only included the comparison between the current range (_species_10_MAXENT.tif_) and the future range under SSP126 (2011–2040) (_2021-2040_ssp126_10.tif_), using a 10% threshold. 
+
+Here, we compared four representative species: Lucifer titi monkey (_Cheracebus lucifer_), Nancy Ma's night monkey (_Aotus nancymaae_), Varied white-fronted capuchin (_Cebus versicolor_), and Ornate titi monkey (_Plecturocebus ornatus_).
+
+The following two species has dramatic **range shift**.
+
+### Lucifer titi monkey (_Cheracebus lucifer_)
+
+```{r, echo = FALSE, include = TRUE, warning=FALSE, message=FALSE}
+sp <- "Cheracebus.lucifer"
+
+cur_fname <- file.path(data_dir, sp, sprintf(cur_path, gsub("\\.", "_", sp)))
+fut_fname <- file.path(data_dir, sp, fut_path)
+aoi_fname <- file.path(data_dir, sp, aoi_path)
+
+cur_range <- rast(cur_fname) %>% extend(col)
+aoi <- st_read(aoi_fname, quiet = TRUE) %>% st_union()
+fut_range <- rast(fut_fname) %>% extend(col)
+
+g1 <- ggplot() +
+  geom_spatraster(data = cur_range, na.rm = TRUE) +
+  geom_sf(data = aoi, fill = "transparent", color = "blue") +
+  geom_sf(data = col, fill = "transparent", color = "black") +
+  scale_fill_whitebox_c(
+    name = "Range",
+    palette = "muted",
+    n.breaks = 2,
+    guide = guide_legend(reverse = TRUE)) +
+  theme_void()
+
+g2 <- ggplot() +
+  geom_spatraster(data = fut_range, na.rm = TRUE) +
+  geom_sf(data = aoi, fill = "transparent", color = "blue") +
+  geom_sf(data = col, fill = "transparent", color = "black") +
+  scale_fill_whitebox_c(
+    name = "Range",
+    palette = "muted",
+    n.breaks = 2,
+    guide = guide_legend(reverse = TRUE)) +
+  theme_void()
+
+ggarrange(g1, g2, labels = c("Current", "SSP126 2011-2040"))
+```
+
+### Nancy Ma's night monkey (_Aotus nancymaae_)
+
+```{r, echo = FALSE, include = TRUE, warning=FALSE, message=FALSE}
+sp <- "Aotus.nancymaae"
+
+cur_fname <- file.path(data_dir, sp, sprintf(cur_path, gsub("\\.", "_", sp)))
+fut_fname <- file.path(data_dir, sp, fut_path)
+aoi_fname <- file.path(data_dir, sp, aoi_path)
+
+cur_range <- rast(cur_fname) %>% extend(col)
+aoi <- st_read(aoi_fname, quiet = TRUE) %>% st_union()
+fut_range <- rast(fut_fname) %>% extend(col)
+
+g1 <- ggplot() +
+  geom_spatraster(data = cur_range, na.rm = TRUE) +
+  geom_sf(data = aoi, fill = "transparent", color = "blue") +
+  geom_sf(data = col, fill = "transparent", color = "black") +
+  scale_fill_whitebox_c(
+    name = "Range",
+    palette = "muted",
+    n.breaks = 2,
+    guide = guide_legend(reverse = TRUE)) +
+  theme_void()
+
+g2 <- ggplot() +
+  geom_spatraster(data = fut_range, na.rm = TRUE) +
+  geom_sf(data = aoi, fill = "transparent", color = "blue") +
+  geom_sf(data = col, fill = "transparent", color = "black") +
+  scale_fill_whitebox_c(
+    name = "Range",
+    palette = "muted",
+    n.breaks = 2,
+    guide = guide_legend(reverse = TRUE)) +
+  theme_void()
+
+ggarrange(g1, g2, labels = c("Current", "SSP126 2011-2040"))
+```
+
+The following two species have dramatic **range shrink**.
+
+### Varied white-fronted capuchin (_Cebus versicolor_)
+
+```{r, echo = FALSE, include = TRUE, warning=FALSE, message=FALSE}
+sp <- "Cebus.versicolor"
+
+cur_fname <- file.path(data_dir, sp, sprintf(cur_path, gsub("\\.", "_", sp)))
+fut_fname <- file.path(data_dir, sp, fut_path)
+aoi_fname <- file.path(data_dir, sp, aoi_path)
+
+cur_range <- rast(cur_fname) %>% extend(col)
+aoi <- st_read(aoi_fname, quiet = TRUE) %>% st_union()
+fut_range <- rast(fut_fname) %>% extend(col)
+
+g1 <- ggplot() +
+  geom_spatraster(data = cur_range, na.rm = TRUE) +
+  geom_sf(data = aoi, fill = "transparent", color = "blue") +
+  geom_sf(data = col, fill = "transparent", color = "black") +
+  scale_fill_whitebox_c(
+    name = "Range",
+    palette = "muted",
+    n.breaks = 2,
+    guide = guide_legend(reverse = TRUE)) +
+  theme_void()
+
+g2 <- ggplot() +
+  geom_spatraster(data = fut_range, na.rm = TRUE) +
+  geom_sf(data = aoi, fill = "transparent", color = "blue") +
+  geom_sf(data = col, fill = "transparent", color = "black") +
+  scale_fill_whitebox_c(
+    name = "Range",
+    palette = "muted",
+    n.breaks = 2,
+    guide = guide_legend(reverse = TRUE)) +
+  theme_void()
+
+ggarrange(g1, g2, labels = c("Current", "SSP126 2011-2040"))
+```
+
+### Ornate titi monkey (_Plecturocebus ornatus_)
+
+```{r, echo = FALSE, include = TRUE, warning=FALSE, message=FALSE}
+sp <- "Plecturocebus.ornatus"
+
+cur_fname <- file.path(data_dir, sp, sprintf(cur_path, gsub("\\.", "_", sp)))
+fut_fname <- file.path(data_dir, sp, fut_path)
+aoi_fname <- file.path(data_dir, sp, aoi_path)
+
+cur_range <- rast(cur_fname) %>% extend(col)
+aoi <- st_read(aoi_fname, quiet = TRUE) %>% st_union()
+fut_range <- rast(fut_fname) %>% extend(col)
+
+g1 <- ggplot() +
+  geom_spatraster(data = cur_range, na.rm = TRUE) +
+  geom_sf(data = aoi, fill = "transparent", color = "blue") +
+  geom_sf(data = col, fill = "transparent", color = "black") +
+  scale_fill_whitebox_c(
+    name = "Range",
+    palette = "muted",
+    n.breaks = 2,
+    guide = guide_legend(reverse = TRUE)) +
+  theme_void()
+
+g2 <- ggplot() +
+  geom_spatraster(data = fut_range, na.rm = TRUE) +
+  geom_sf(data = aoi, fill = "transparent", color = "blue") +
+  geom_sf(data = col, fill = "transparent", color = "black") +
+  scale_fill_whitebox_c(
+    name = "Range",
+    palette = "muted",
+    n.breaks = 2,
+    guide = guide_legend(reverse = TRUE)) +
+  theme_void()
+
+ggarrange(g1, g2, labels = c("Current", "SSP126 2011-2040"))
+```
+
+## Spatially constraint for future ranges
+
+After reviewing these layers, we observed that future ranges often extend beyond current ranges very much, which may not be realistic. To address this, we proposed limiting future ranges to a meaningful buffer around current ranges. Ideally, this buffer should be set individually for each species based on their dispersal ability. However, in the absence of such information, we applied a 100 km buffer to the **interested area**.
+
+With this constraint in place, we calculated the Intersection over Union (IoU), which is determined by dividing the area of intersection by the area of union.
+
+Below is the IoU distribution, which appears reasonable.
+
+```{r, echo = FALSE, include = TRUE, warning=FALSE, message=FALSE}
+ggplot(sp_numbers, aes(x = IoU)) +
+  geom_histogram(aes(y = ..density..), binwidth = 5, 
+                 colour = "black", fill = "white") +
+  geom_density(alpha = .2, fill="#FF6666") +
+  ylab("Density") +
+  theme_pubclean(base_size = 12) +
+  theme(axis.text = element_text(size = 12, color = "black"))
+```
+
+Additionally, the mammal richness calculated with this constraint are as follows:
+
+```{r, echo = FALSE, include = TRUE, warning=FALSE, message=FALSE}
+# Examine the overall current and future distribution
+sp_selected <- sp_numbers %>% filter(IoU <= 50 & aoi_area >= 1e6)
+col_ext <- vect(col) %>% ext()
+
+cur_diversity <- lapply(sp_selected$species, function(sp){
+  cur_fname <- file.path(data_dir, sp, sprintf(cur_path, gsub("\\.", "_", sp)))
+  rast(cur_fname) %>% extend(col_ext)
+})
+cur_diversity <- do.call(c, cur_diversity)
+cur_diversity <- sum(cur_diversity, na.rm = TRUE)
+
+fut_diversity <- lapply(sp_selected$species, function(sp){
+  fut_fname <- file.path(data_dir, sp, fut_path)
+  aoi_fname <- file.path(data_dir, sp, aoi_path)
+  
+  aoi <- st_read(aoi_fname, quiet = TRUE)
+  aoi_spread <- st_buffer(aoi, 0.008333333 * 100)
+  
+  mask(rast(fut_fname), aoi_spread) %>% extend(col_ext)
+})
+fut_diversity <- do.call(c, fut_diversity)
+fut_diversity <- sum(fut_diversity, na.rm = TRUE)
+
+diversity <- c(cur_diversity, fut_diversity)
+diversity <- mask(diversity, col) %>% trim()
+names(diversity) <- c("Current", "2021-2040_ssp126")
+
+ggplot() +
+  geom_spatraster(data = diversity) +
+  scale_fill_whitebox_c(
+    name = "Diversity",
+    palette = "muted",
+    n.breaks = 8,
+    guide = guide_legend(reverse = TRUE)) + 
+  facet_wrap(~lyr) + 
+  theme_void() +
+  theme(title = element_text(size = 14),
+        legend.text = element_text(size = 14),
+        strip.text = element_text(size = 14))
+```
+
+## Overall distribution of range areas
+
+Finally, here is the overall review of the species ranges (I haven't removed flying mammals yet, but I may do so):
+
+```{r, echo = FALSE, include = TRUE, warning=FALSE, message=FALSE, fig.height=7, fig.width=6}
+# Summarize the species
+nums <- c(
+  (sp_numbers %>% filter(aoi_area < 1e6) %>% nrow()) / nrow(sp_numbers) * 100,
+  (sp_numbers %>% filter(aoi_area >= 1e6 & IoU > 50) %>% nrow()) / 
+    nrow(sp_numbers) * 100,
+  (sp_numbers %>% filter(aoi_area >= 1e6 & IoU <= 50) %>% nrow()) / 
+    nrow(sp_numbers) * 100)
+names(nums) <- c("small", "large_health", "large_fragment")
+
+# Make a figure
+ggplot(data = sp_numbers) +
+  geom_vline(xintercept = 1, color = "purple", linetype = "dashed") + 
+  geom_segment(aes(x = 1, xend = 10, y = 50, yend = 50), 
+               color = "purple", linetype = "dashed") +
+  geom_point(aes(x = aoi_area / 1e6, y = IoU, 
+                 color = cur_area / 1e6, size = fut_area / 1e6)) +
+  geom_smooth(aes(x = aoi_area / 1e6, y = IoU)) + xlim(0, 10) + 
+  scale_color_viridis_c(expression(paste("Current area(1e"^6, ")")),
+                        guide = guide_colorbar(title.vjust = 1)) +
+  scale_size_area(expression(paste("Future area(1e"^6, ")"))) +
+  xlab(expression(paste("Area of the interested area (1e"^6, ")"))) + ylab("IoU") +
+  annotate("text", label = paste0(round(nums, 1), "%"), 
+           x = c(0, 9, 9), y = c(90, 55, 12), size = 5, fontface = "bold") +
+  theme_pubclean() +
+  theme(legend.box = "vertical",
+        axis.text = element_text(size = 11),
+        axis.title = element_text(size = 12))
+```

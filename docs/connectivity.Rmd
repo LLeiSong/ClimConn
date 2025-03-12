@@ -1,0 +1,191 @@
+---
+title: "Connectivity in land use planning"
+author: "Lei Song"
+date: "2024-05-23"
+output: html_document
+---
+
+<style type="text/css">
+  body{
+  font-size: 16pt;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(sf)
+library(terra)
+library(dplyr)
+library(here)
+library(scrubr)
+library(ggplot2)
+library(tidyterra)
+library(ggpubr)
+
+sdm_dir <- file.path(here("data/suitability"), "sdm")
+species <- "Saguinus oedipus"
+```
+
+## Background
+
+Took approaches conducted in paper [Hanson et. al, 2022](https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/1365-2664.14251).
+
+- **Total area**: Connectivity increase with increasing total habitat. This is an PA-level only approach. (We have already done better by using species-level. Also mathematically, it may against species targets and 30% target.)
+- Species representation: This is a species-level "total area" approach. (May be duplicated with habitat targets.)
+- Boundary length: To minimize the total boundary (perimeter) length of reserves. (Good luck if you insist on this.)
+- Human pressure: To aggressively select adjacent planning units with low human pressure.
+- Naturalness-based landscape resistance: To aggressively select adjacent planning units with natural conditions. (This seems like the opposite of "Human pressure".)
+- Focal species landscape resistance: To select adjacent planning units that can strongly facilitate movements of a single (or a few) focal species.
+- Habitat heterogeneity: To select adjacent planning units with **low** habitat heterogeneity. *This assumes that places with greater habitat heterogeneity have reduced species' movements* (I am not a big fan of this theory.).
+- Environmental similarity: To select adjacent planning units with similar environmental conditions. I think Environmental similarity is another word for species suitability. *This can potentially promote the consideration of climate change.*
+
+So, we can try "naturalness-based landscape resistance", "focal species landscape resistance", or "Environmental similarity" (species suitability).
+
+## Experiments
+
+```{r, eval=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
+# Range map
+range_map <- rast(
+  file.path("data/IUCN_AOH_100m/mammals",
+            sprintf("%s.tif", gsub(" ", "_", species))))
+range_map[range_map == 0] <- NA
+
+# Calculate the distance
+dist_to_aoh <- distance(range_map, unit = "km")
+dist_to_aoh <- mask(dist_to_aoh, suit)
+dist_to_aoh <- (dist_to_aoh - global(dist_to_aoh, "min", na.rm = TRUE)[[1]]) / 
+  (global(dist_to_aoh, "max", na.rm = TRUE)[[1]] - 
+     global(dist_to_aoh, "min", na.rm = TRUE)[[1]])
+writeRaster(dist_to_aoh, "data/suitability/dist_to_aoh.tif")
+```
+
+## Use zonation5
+
+We can use zonation5 to pre-process species layers to consider both climate change and connectivity before prioritizer. 
+
+What described in zonation manual makes perfect sense:
+
+1. Are the different layers (consecutive) time-steps or alternative realizations? I believe they mean alternative realizations to us.
+
+2. Are the different time-steps/realizations equally likely? Definitely not. The future is inherently more uncertain than the present.
+
+3. Is there a need to account for connectivity? We want! But we have to deal time-steps as time-steps.
+
+*4. Priority areas produced in such analyses cannot necessarily be interpreted as ecological refugia.* This is completely right. Therefore, we will use the rankmaps as the inputs for prioritizer. 
+
+```{r, eval=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
+# Prepare layers, current and future (alternative realizations)
+# Current layer
+fn <- file.path(sdm_dir, sprintf("suit_%s.tif", gsub(" ", "_", species)))
+suit <- rast(fn) %>% mean(na.rm = TRUE)
+suit[suit < 0] <- 0
+
+fn <- file.path(sdm_dir, sprintf("future_suit_%s.tif", gsub(" ", "_", species)))
+future_suit <- rast(fn) %>% mean(na.rm = TRUE)
+future_suit[future_suit < 0] <- 0
+
+pas <- rast("mod_input_lyr/nps.tif")
+
+suit <- project(suit, pas, method = "bilinear")
+future_suit <- project(future_suit, pas, method = "bilinear")
+
+writeRaster(suit, "data/zonation/data/suit.tif")
+writeRaster(future_suit, "data/zonation/data/future_suit.tif")
+writeRaster(pas, "data/zonation/data/protect_area.tif", datatype = "INT1U")
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.height=18, fig.width=12}
+# Current layer
+fn <- file.path(sdm_dir, sprintf("suit_%s.tif", gsub(" ", "_", species)))
+suit <- rast(fn) %>% mean(na.rm = TRUE)/1000
+
+fn <- file.path(sdm_dir, sprintf("future_suit_%s.tif", gsub(" ", "_", species)))
+future_suit <- rast(fn) %>% mean(na.rm = TRUE)/1000
+
+# Integrate
+suit_ens <- suit * future_suit / 
+        (suit * future_suit + (1 - suit) * (1 - future_suit))
+
+# Weighted by the distance to current AOH
+dist_to_aoh <- rast(here("data/suitability/dist_to_aoh.tif"))
+suit_fut_cal <- future_suit * (1 - dist_to_aoh)
+
+# Negative exponential decay
+exp_dist <- dexp(values(dist_to_aoh), rate = 10)
+suit_fut_cal2 <- dist_to_aoh; values(suit_fut_cal2) <- exp_dist
+suit_fut_cal2 <- future_suit * suit_fut_cal2
+
+# Zonation 5
+rankmap_cr <- rast(here("data/zonation/setup_6/output/rankmap.tif"))
+rankmap_bl <- rast(here("data/zonation/setup_1/output/rankmap.tif"))
+
+g1 <- ggplot() +
+  geom_spatraster(data = suit) +
+  scale_fill_whitebox_c(
+    name = "Suitability",
+    palette = "muted",
+    n.breaks = 12,
+    guide = guide_legend(reverse = TRUE)
+  ) + ggtitle("Saguinus oedipus (Current)\n ") +
+  theme_void() +
+  theme(title = element_text(size = 16))
+
+g2 <- ggplot() +
+  geom_spatraster(data = future_suit) +
+  scale_fill_whitebox_c(
+    name = "Suitability",
+    palette = "muted",
+    n.breaks = 12,
+    guide = guide_legend(reverse = TRUE)
+  ) + ggtitle("Saguinus oedipus (Future)\n ") +
+  theme_void() +
+  theme(title = element_text(size = 16))
+
+g3 <- ggplot() +
+  geom_spatraster(data = suit_fut_cal) +
+  scale_fill_whitebox_c(
+    name = "Climate resilient",
+    palette = "muted",
+    n.breaks = 12,
+    guide = guide_legend(reverse = TRUE)
+  ) + ggtitle("Saguinus oedipus\n(Future * (1 - distance to AOH))") +
+  theme_void() +
+  theme(title = element_text(size = 16))
+
+g4 <- ggplot() +
+  geom_spatraster(data = suit_fut_cal2) +
+  scale_fill_whitebox_c(
+    name = "Climate resilient",
+    palette = "muted",
+    n.breaks = 6,
+    guide = guide_legend(reverse = TRUE)
+  ) + ggtitle("Saguinus oedipus\n(Future * (dexp distance to AOH))") +
+  theme_void() +
+  theme(title = element_text(size = 16))
+
+g5 <- ggplot() +
+  geom_spatraster(data = rankmap_bl) +
+  scale_fill_whitebox_c(
+    name = "Climate resilient",
+    palette = "muted",
+    n.breaks = 6,
+    guide = guide_legend(reverse = TRUE)
+  ) + ggtitle("Saguinus oedipus\n(zonation5, Baseline connectivity)") +
+  theme_void() +
+  theme(title = element_text(size = 16))
+
+g6 <- ggplot() +
+  geom_spatraster(data = rankmap_cr) +
+  scale_fill_whitebox_c(
+    name = "Climate resilient",
+    palette = "muted",
+    n.breaks = 6,
+    guide = guide_legend(reverse = TRUE)
+  ) + ggtitle("Saguinus oedipus\n(zonation5, Interaction connectivity)") +
+  theme_void() +
+  theme(title = element_text(size = 16))
+
+ggarrange(g1, g2, g3, g4, g5, g6, ncol = 2, nrow = 3)
+```
+
+Zonation5 (or our manual calculation) relies heavily on distance-sensitive transform functions (uniform, triangular, Gaussian, and Negative exponential function) to calculate connectivity. Thus, Brain's dispersal distance analysis can be super helpful for us as well.
