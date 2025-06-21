@@ -23,6 +23,9 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
 library(ggplot2)
 library(ggpubr)
+library(sf)
+library(terra)
+library(dplyr)
 
 root_dir <- here::here()
 fname <- file.path(root_dir, "data/sp_numbers.csv")
@@ -37,112 +40,28 @@ aoi_path <- "interest_areas/shape_M.shp"
 crs_analysis <- "ESRI:54030"
 ```
 
-## Check the current and future ranges
-
-```{r}
-## Later reload the table from file
-sp_numbers_all <- read.csv(fname)
-
-# Load boundary
-col_real <- st_read(file.path(root_dir, "data/colombia.geojson")) %>% 
-  st_transform(crs_analysis)
-col <- vect(col_real) %>% ext()
-
-# Summarize the species
-for (ssp in c("ssp126", "ssp585")){
-  sp_numbers <- sp_numbers_all[sp_numbers_all$ssp == ssp, ]
-  nums <- c(
-    (sp_numbers %>% filter(aoi_area < 1e6) %>% nrow()) / nrow(sp_numbers) * 100,
-    (sp_numbers %>% filter(aoi_area >= 1e6 & IoU > 50) %>% nrow()) / 
-      nrow(sp_numbers) * 100,
-    (sp_numbers %>% filter(aoi_area >= 1e6 & IoU <= 50) %>% nrow()) / 
-      nrow(sp_numbers) * 100)
-  names(nums) <- c("small", "large_health", "large_fragment")
-  
-  # Make a figure
-  ggplot(data = sp_numbers) +
-    geom_vline(xintercept = 1, color = "purple", linetype = "dashed") + 
-    geom_segment(aes(x = 1, xend = 10, y = 50, yend = 50), 
-                 color = "purple", linetype = "dashed") +
-    geom_point(aes(x = aoi_area / 1e6, y = IoU, 
-                   color = cur_area / 1e6, size = fut_area / 1e6)) +
-    geom_smooth(aes(x = aoi_area / 1e6, y = IoU)) + xlim(0, 10) + 
-    scale_color_viridis_c(expression(paste("Current area(1e"^6, ")")),
-                          guide = guide_colorbar(title.vjust = 1)) +
-    scale_size_area(expression(paste("Future area(1e"^6, ")"))) +
-    xlab(expression(paste("AOI area (1e"^6, ")"))) + ylab("IoU") +
-    annotate("text", label = paste0(round(nums, 0), "%"), 
-             x = c(0, 9, 9), y = c(90, 55, 12), size = 5, fontface = "bold") +
-    theme_pubclean() +
-    theme(legend.box = "vertical",
-          axis.text = element_text(size = 11),
-          axis.title = element_text(size = 12))
-  
-  ggsave(sprintf("results/area_distribution_%s.png", ssp), 
-         width = 6, height = 7, bg = "white")
-  
-  # Examine the overall current and future distribution
-  sp_selected <- sp_numbers %>% filter(IoU <= 50 & aoi_area >= 1e6)
-  
-  cur_diversity <- lapply(sp_selected$species, function(sp){
-    cur_fname <- file.path(data_dir, sp, sprintf(cur_path, gsub("\\.", "_", sp)))
-    rast(cur_fname) %>% project(crs_analysis) %>% extend(col)
-  })
-  cur_diversity <- do.call(c, cur_diversity)
-  cur_diversity <- sum(cur_diversity, na.rm = TRUE)
-  
-  fut_diversity <- lapply(sp_selected$species, function(sp){
-    fut_path <- fut_paths[grep(ssp, fut_paths)]
-    fut_fname <- file.path(data_dir, sp, fut_path)
-    aoi_fname <- file.path(data_dir, sp, aoi_path)
-    
-    # Get potential dispersal distance
-    dispersal_rate <- read.csv(dispersal_path) %>% 
-      filter(species == gsub("\\.", " ", sp)) %>% pull(dispersal_rate)
-    if (length(dispersal_rate) == 0) {
-      dispersal_rate <- read.csv(dispersal_path) %>% 
-        pull(dispersal_rate) %>% median()
-    }
-    dis_dist <- dispersal_rate * 40 * 1000 # in meter
-    
-    aoi <- st_read(aoi_fname) %>% st_transform(crs_analysis)
-    aoi_spread <- st_buffer(aoi, dis_dist)
-    
-    mask(rast(fut_fname) %>% project(crs_analysis), aoi_spread) %>% extend(col)
-  })
-  fut_diversity <- do.call(c, fut_diversity)
-  fut_diversity <- sum(fut_diversity, na.rm = TRUE)
-  
-  diversity <- c(cur_diversity, fut_diversity)
-  diversity <- mask(diversity, col_real) %>% trim()
-  names(diversity) <- c("Current", "2021-2040")
-  
-  ggplot() +
-    geom_spatraster(data = diversity) +
-    scale_fill_whitebox_c(
-      name = "Diversity",
-      palette = "muted",
-      n.breaks = 8,
-      guide = guide_legend(reverse = TRUE)) + 
-    facet_wrap(~lyr) + 
-    theme_void() +
-    theme(title = element_text(size = 14),
-          legend.text = element_text(size = 14),
-          strip.text = element_text(size = 14))
-  
-  ggsave(sprintf("results/diversity_%s.png", ssp), 
-         width = 8, height = 5, bg = "white")
-}
-```
-
-
 ## Set up the HPC environment
 
-**Step1**. Clone the previous conda environment sdm, which is ready to use R for spatial analysis.
+**Step1**. Install R, R spatial packages and R essentials
+
+Note: Due to issues with the SQLite library, these steps have been tested to ensure all packages are installed correctly and function as expected.
 
 ```
-conda create --name conn --clone sdm
-conda activate conn
+conda install conda=25.5.1
+conda install conda-forge::r-base
+conda install r::r-juliacall
+conda install conda-forge::r-terra
+conda install conda-forge::libsqlite --force-reinstall
+conda install conda-forge::r-codetools
+conda install conda-forge::r-sf
+conda install conda-forge::r-gdalutilities
+conda install conda-forge::r-essentials
+```
+
+Install other essential R packages
+
+```
+conda install -c conda-forge r-stringr r-fastshap r-optparse r-readxl r-rgbif r-here r-devtools
 ```
 
 **Step2**. Install Julia and Omniscape package
@@ -166,7 +85,7 @@ add PROJ_jll@901.300 GDAL_jll@301.900
 add ArchGDAL
 
 # Link and compile Omniscape
-dev /home/lsong/Omniscape.jl
+dev /home/ls1686/Omniscape.jl
 using Omniscape
 
 # Add other packages for R
@@ -177,6 +96,33 @@ add RCall
 conda deactivate
 ```
 
+A note for juliaup: there should be a `juliaup.json` file like this:
+
+```
+{
+  "Default": "release",
+  "InstalledVersions": {
+    "1.11.3+0.x64.linux.gnu": {
+      "Path": "./julia-1.11.3+0.x64.linux.gnu"
+    },
+    "1.11.4+0.x64.linux.gnu": {
+      "Path": "./julia-1.11.4+0.x64.linux.gnu"
+    }
+  },
+  "InstalledChannels": {
+    "1.11.3": {
+      "Version": "1.11.3+0.x64.linux.gnu"
+    },
+    "release": {
+      "Version": "1.11.4+0.x64.linux.gnu"
+    }
+  },
+  "Settings": {},
+  "Overrides": [],
+  "LastVersionDbUpdate": "2025-04-08T22:32:43.036417355Z"
+}
+```
+
 ## Omniscape
 
 A few terms:
@@ -185,7 +131,7 @@ A few terms:
 
 **Resistance layer**: The inverse of conductance, representing the difficulty of movement across the landscape.
 
-**Target pixel**: The central pixel within the circular window.
+**Target/ground pixel**: The central pixel within the circular window.
 
 **Source pixels**: All pixels within the circular window that exceed the defined source strength threshold. They are identified similarly to the target pixel.
 

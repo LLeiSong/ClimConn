@@ -1,3 +1,36 @@
+#' @title climate_change
+#' @description Function to calculate climate change impact.
+#' @param feature (`character`) The target environmental feature.
+#' @param scenario (`character`) The climate model scenario.
+#' @param species_list (`vector`) A vector of species.
+#' @param template (`spatRaster`) The template to burn the result in.
+#' @param root_dir (`character`) The directory for variable list.
+#' @param sdm_dir (`character`) The directory for sdm of species.
+#' @param dst_dir (`character`) The destination directory to save out the results.
+#' @return All files will be saved out.
+#' 
+#' @details
+#' Make sure GDAL library is installed on your machine to make this work.
+#' 
+#' @import checkmate
+#' @import terra
+#' @import sf
+#' @import dplyr
+#' @import stringr
+#' @export
+#' @examples
+#' \donttest{
+#' feature <- "bio1"
+#' scenario <- "ssp370_2041-2070"
+#' species_list <- c("Mustela_erminea", "Mustela_nivalis")
+#' root_dir <- "/home/lsong/SCImpact"
+#' sdm_dir <- "/bigscratch/lsong/results/sdm"
+#' dst_dir <- "/bigscratch/lsong/climate change"
+#' climate_change(feature, scenario, species_list, template, 
+#' root_dir, sdm_dir, dst_dir)
+#' }
+#' 
+
 library(ini)
 library(JuliaCall)
 library(terra)
@@ -9,7 +42,6 @@ clim_connect <- function(sp,
                          suit_list,
                          habitat_list,
                          time_periods,
-                         config_template,
                          work_dir = ".",
                          julia_home = NULL,
                          verbose = FALSE){
@@ -43,7 +75,7 @@ clim_connect <- function(sp,
     julia_command("Logging.disable_logging(Logging.Info)", show_value = FALSE)
   }
   
-  config <- read.ini(config_template)
+  config <- read.ini(file.path(work_dir, "omniscape_setting_template.ini"))
   config$Options$radius <- dispersal_dist
   config$Options$buffer <- ceiling(dispersal_dist / 2)
   # config$Options$block_size <- 5
@@ -89,5 +121,16 @@ clim_connect <- function(sp,
   write.ini(config, fname)
   
   # Run omniscape
+  julia_command(sprintf('run_omniscape("%s")', fname), show_value = FALSE)
+  
+  # Update config for potential without future change
+  fname <- gsub("config", "p_config", fname)
+  config$`Input files`$resistance_file <- suit_name
+  config$`Input files`$ground_file <- source_name
+  config$`Input files`$source_file <- source_name
+  config$Options$project_name <- sprintf("%s_potential", project_name)
+  write.ini(config, fname)
+  
+  # Run omniscape again
   julia_command(sprintf('run_omniscape("%s")', fname), show_value = FALSE)
 }

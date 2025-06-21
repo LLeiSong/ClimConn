@@ -1,17 +1,15 @@
 library(dplyr)
 
-root_dir <- "/home/lsong/ClimConn"
-fname <- file.path(root_dir, "data/sp_numbers.csv")
-sp_numbers <- read.csv(fname)
+root_dir <- "/scratch/ls1686/ClimConn"
+sp_list <- list.files(file.path(root_dir, "data/mamiferos"))
 
-for (scenario in c("ssp126", "ssp585")){
-  sp_selected <- sp_numbers %>% filter(ssp == scenario) %>% 
-    filter(IoU <= 50 & aoi_area >= 1e6) %>% 
-    arrange(cur_area)
-  
-  sp_list <- sp_selected$species
-  
+chunk_length <- 5
+sp_list <- split(
+  sp_list, ceiling(seq_along(sp_list) / chunk_length))
+
+for (scenario in c("ssp126", "ssp370", "ssp585")){
   for (sp in sp_list){
+    sp <- paste(sp, collapse = ",")
     system(sprintf("sbatch schedulers/bmd_connect.sh %s %s", sp, scenario))
   }
 }
