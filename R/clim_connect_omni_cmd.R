@@ -86,8 +86,6 @@ clim_connect <- function(sp,
         "%s/julia --threads %s R/run_omniscape.jl -i %s", 
         julia_home, config$`Output options`$parallel_batch_size, fname)
       system(cmd)
-    } else {
-      unlink(project_name, recursive = TRUE)
     }
   }
 }

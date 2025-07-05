@@ -35,36 +35,9 @@ col <- st_read(file.path(root_dir, "data/colombia.geojson")) %>%
 sps <- list.files(file.path(root_dir, "data/mamiferos"))
 
 # Remove ongoing ones
-results <- lapply(ssps, function(ssp){
-  lapply(sps, function(sp){
-    fnames <- list.files(
-      file.path(result_dir, ssp, sp), 
-      pattern = "cum_currmap.tif", recursive = TRUE)
-    
-    fnum <- sum(dir.exists(
-      file.path(result_dir, ssp, sp, years)))
-    
-    fnum_s <- sum(dir.exists(
-      file.path(result_dir, ssp, sp, sprintf("%s_1", years))))
-    
-    fnum_good <- sum(
-      file.exists(file.path(result_dir, ssp, sp, years, 
-                            "cum_currmap.tif")))
-    
-    fnum_abrupt <- sum(
-      file.exists(file.path(result_dir, ssp, sp, sprintf("%s_1", years), 
-                            "cum_currmap.tif")))
-    
-    data.frame(
-      sp = sp,
-      fnum = length(fnames),
-      abrupt = ifelse(fnum_s != 0 & fnum_abrupt != 0, 1, 0),
-      all = ifelse(fnum == fnum_good, 1, 0),
-      done = ifelse(fnum == length(fnames) & fnum == 4 & fnum_s == 0, 1, 0))
-  }) %>% bind_rows() %>% mutate(ssp = ssp)
+sp_list <- lapply(ssps, function(ssp){
+  data.frame(sp = sps, ssp = ssp)
 }) %>% bind_rows()
-
-sp_list <- results %>% filter(done == 0)
 
 smr_species <- mclapply(1:nrow(sp_list), function(i){
   record <- sp_list %>% slice(i)
