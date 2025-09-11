@@ -5,6 +5,7 @@ library(here)
 library(ggpubr)
 library(smoothr)
 library(stars)
+library(dplyr)
 sf_use_s2(FALSE)
 
 # Setting
