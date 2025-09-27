@@ -1,15 +1,30 @@
 # Load libraries
+library(ini)
 library(readxl)
 library(dplyr)
 library(sf)
 library(terra)
-library(parallel)
+library(optparse)
 sf_use_s2(FALSE)
+
+# Parse inline parameters
+option_list <- list(
+  make_option(c("-s", "--sp"), 
+              action = "store", type = 'character',
+              help = "The species to process."),
+  make_option(c("-o", "--scenario"), 
+              action = "store", type = 'character',
+              help = "The scenario to process."))
+opt <- parse_args(OptionParser(option_list = option_list))
+sp <- opt$sp
+sp_list <- strsplit(sp, ",")[[1]]
+scenario <- opt$scenario
 
 # Define paths and parameters
 code_dir <- "/home/ls1686/ClimConn"
 root_dir <- "/scratch/ls1686/ClimConn"
-result_dir <- file.path(root_dir, "results/omni")
+# Local: /Users/leisong/.juliaup/bin
+julia_home <- "/home/ls1686/.conda/envs/sdm/bin"
 crs_analysis <- "ESRI:54030"
 years <- c("2021-2040", "2041-2060", "2061-2080", "2081-2100")
 ssps <- c("ssp126", "ssp370", "ssp585")
@@ -28,21 +43,18 @@ aoi_path <- "interest_areas/shape_M.shp"
 dispersal_path <- file.path(
   root_dir, "data/dispersal", "species_dispersal_rate.csv")
 
+# Load radius_block relationship
+allow_min_radius <- read.csv(
+  file.path(root_dir, "results/block_radius", "allow_min_radius.csv"))
+
+# Load function
+source(file.path(code_dir, "R/clim_connect_omni_cmd.R"))
+
 # Load files 
 col <- st_read(file.path(root_dir, "data/colombia.geojson")) %>% 
   st_transform(crs_analysis)
 
-sps <- list.files(file.path(root_dir, "data/mamiferos"))
-
-# Remove ongoing ones
-sp_list <- lapply(ssps, function(ssp){
-  data.frame(sp = sps, ssp = ssp)
-}) %>% bind_rows()
-
-smr_species <- mclapply(1:nrow(sp_list), function(i){
-  record <- sp_list %>% slice(i)
-  sp <- record$sp
-  scenario <- record$ssp
+for (sp in sp_list){
   # Define the time periods
   time_periods <- c("1970-2000", years)
   
@@ -107,36 +119,53 @@ smr_species <- mclapply(1:nrow(sp_list), function(i){
       } else null_id <- min(null_id)
       
       if (null_id > 1){
-        connect <- 1
-        habitat <- 1
-        big_habitat <- 1
+        fut_ranges <- fut_ranges[1:(null_id - 1)]
+        fut_ranges <- do.call(c, fut_ranges)
         time_periods <- time_periods[1:null_id]
+        n_tp <- length(time_periods)
+        
+        hbts <- c(cur_patches, fut_ranges)
+        names(hbts) <- time_periods
+        
+        # Extract suitability for patches
+        cur_suit <- rast(cur_suit_fn) %>% project(crs_analysis) %>% 
+          mask(aoi_spreads[[4]])
+        fut_suits <- rast(fut_suit_fns[1:(null_id - 1)]) %>% 
+          project(crs_analysis) %>% mask(aoi_spreads[[4]])
+        suits <- c(cur_suit, fut_suits)
+        names(suits) <- time_periods
+        
+        lyrs <- c(hbts, suits) %>% trim()
+        
+        hbts <- subset(lyrs, 1:n_tp)
+        hbts[hbts == 0] <- NA
+        names(hbts) <- time_periods
+        
+        suits <- subset(lyrs, (n_tp + 1):(2 * n_tp))
+        names(suits) <- time_periods
+        
+        # Update dispersal distances to between each time points
+        disersal_dists <- dispersal_rate * 1000 * c(40, 20, 20, 20)
+        disersal_dists <- ceiling(disersal_dists / res(suits)[1])[1:(null_id - 1)]
+        
+        circ_dir <- file.path(root_dir, "results", "omni", scenario)
+        if (!dir.exists(circ_dir)) dir.create(circ_dir, recursive = TRUE)
+        
+        config_template <- read.ini(file.path(
+          root_dir, "data/config", "omniscape_setting_template.ini"))
+        
+        tryCatch({
+          clim_connect(
+            sp, disersal_dists, suits, hbts, time_periods, 
+            circ_dir, config_template, allow_min_radius, julia_home, TRUE)
+        }, error = function(e){print(e)})
       } else{
         message(sprintf("%s will lose all connection to future in Colombia.", sp))
-        connect <- 0
-        habitat <- 1
-        big_habitat <- 1
-        time_periods <- NA
       }
     } else {
       message(sprintf("%s has no valid big enough habitat in Colombia.", sp))
-      connect <- 0
-      habitat <- 1
-      big_habitat <- 0
-      time_periods <- NA
     }
   } else{
     message(sprintf("%s has no valid habitat in Colombia.", sp))
-    connect <- 0
-    habitat <- 0
-    big_habitat <- 0
-    time_periods <- NA
   }
-  
-  data.frame(sp = sp, ssp = scenario,
-             habitat = habitat, big_habitat = big_habitat,
-             connect = connect, time_periods = time_periods)
-}, mc.cores = 3) %>% bind_rows()
-
-write.csv(smr_species, row.names = FALSE,
-          file.path(code_dir, "data/smr_species.csv"))
+}

@@ -3,6 +3,14 @@ library(terra)
 library(sf)
 library(dplyr)
 
+get_suit_block <- function(x, df){
+  df <- df[order(df$allow_min_radius), ]
+  matched_row <- tail(df[df$allow_min_radius <= x, ], 1)
+  
+  if (nrow(matched_row) == 0) return(1)
+  return(matched_row$block_size)
+}
+
 clim_connect <- function(sp,
                          disersal_dists,
                          suit_list,
@@ -10,6 +18,7 @@ clim_connect <- function(sp,
                          time_periods,
                          work_dir = ".",
                          config,
+                         allow_min_radius,
                          julia_home = NULL,
                          ...){
   # Create working directory
@@ -35,6 +44,7 @@ clim_connect <- function(sp,
       disersal_dist <- disersal_dists[i]
       config$Options$radius <- disersal_dist
       config$Options$buffer <- ceiling(disersal_dist / 2)
+      config$Options$block_size <- get_suit_block(disersal_dist, allow_min_radius)
       
       # Set names for runs
       nm <- time_periods[[i]]
@@ -85,7 +95,12 @@ clim_connect <- function(sp,
       cmd <- sprintf(
         "%s/julia --threads %s R/run_omniscape.jl -i %s", 
         julia_home, config$`Output options`$parallel_batch_size, fname)
-      system(cmd)
+      result <- system(cmd)
+      
+      if (result != 0) {
+        unlink(sp_dir, recursive = TRUE)
+        stop(sprintf("Run failed for species %s.", sp))
+      }
     }
   }
 }

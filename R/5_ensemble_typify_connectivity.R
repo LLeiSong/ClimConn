@@ -13,12 +13,10 @@ source("R/utils.R")
 root_dir <- here()
 data_dir <- file.path(root_dir, "data")
 result_dir <- file.path(root_dir, "results/omni")
-landform_dir <- file.path(root_dir, "results/landform")
-if (!dir.exists(landform_dir)) dir.create(landform_dir)
+typology_dir <- file.path(root_dir, "results/typology")
+if (!dir.exists(typology_dir)) dir.create(typology_dir)
 
 # Parameters
-smoothness <- 1
-contour_interval <- 0.02
 years <- c("2021-2040", "2041-2060", "2061-2080", "2081-2100")
 ssps <- c("ssp126", "ssp370", "ssp585")
 crs_analysis <- "ESRI:54030"
@@ -45,7 +43,8 @@ conn_lyrs <- do.call(c, lapply(years, function(yr){
       if (file.exists(fname)){
         curmap <- rast(fname)
         curmap <- crop(curmap, template)
-        if (global(curmap, sum, na.rm = TRUE)[[1]] != 0){
+        if (global(curmap, sum, na.rm = TRUE)[[1]] != 0 |
+            is.nan(global(curmap, sum, na.rm = TRUE)[[1]])){
           curmap <- stretch(curmap, minv = 0, maxv = 1)
           terra::extend(curmap, ext(template), fill = NA)
         }
@@ -63,6 +62,7 @@ conn_lyrs <- do.call(c, lapply(years, function(yr){
   lyrs
 }))
 
+# With a buffer
 writeRaster(conn_lyrs, file.path(result_dir, "conn_lyrs.tif"),
             overwrite = TRUE)
 
@@ -128,24 +128,25 @@ for (nm in names(conn_lyrs)){
   # Step 3: Set it as a categorical (factor) raster
   levels(classes) <- data.frame(
     ID = c(0, 1, 10, 111, 2, 20, 222, 300),
-    class = c("Irregular", "Plateau", "Peak", "Peak plateau",
-              "Sink", "Lowland", "Sink lowland",
-              "High relief"))
+    class = c("Local Street", "Through Lane", "Fast Lane", "Express Lane",
+              "Bottleneck", "No-Pass Zone", "Roadblock", "Merge Lane"))
   
-  fname <- file.path(landform_dir, sprintf("conn_classes_%s.tif", nm))
+  fname <- file.path(typology_dir, sprintf("conn_types_%s.tif", nm))
   writeRaster(classes, fname)
 }
 
 classes <- data.frame(
   ID = c(0, 1, 10, 111, 2, 20, 222, 300),
-  class = c("Irregular", "Plateau", "Peak", "Peak plateau",
-            "Sink", "Lowland", "Sink lowland",
-            "High relief"))
+  class = c("Local Street", "Through Lane", "Fast Lane", "Express Lane",
+            "Bottleneck", "No-Pass Zone", "Roadblock", "Merge Lane"))
 
-fname <- file.path(landform_dir, "connectivity_landforms.csv")
+fname <- file.path(typology_dir, "connectivity_typology.csv")
 write.csv(classes, fname, row.names = FALSE)
 
 # #### Extract contour lines #####
+# # Parameters
+# smoothness <- 1
+# contour_interval <- 0.02
 # contour_min <- round(min(global(conn_lyrs, "min", na.rm = TRUE)[["min"]]), 1)
 # contour_max <- round(max(global(conn_lyrs, "max", na.rm = TRUE)[["max"]]), 1)
 # 
@@ -197,7 +198,7 @@ write.csv(classes, fname, row.names = FALSE)
 #   
 #   # Save out
 #   fname <- file.path(
-#     landform_dir, sprintf('contours_%s_%s_%s.shp', 
+#     typology_dir, sprintf('contours_%s_%s_%s.shp', 
 #                           contour_interval, smoothness, nm))
 #   if (file.exists(fname)) st_delete(fname)
 #   st_write(contours, fname)

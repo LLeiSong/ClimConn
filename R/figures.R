@@ -6,6 +6,9 @@ library(ggpubr)
 library(smoothr)
 library(stars)
 library(dplyr)
+library(ini)
+library(terra)
+library(stringr)
 sf_use_s2(FALSE)
 
 # Setting
@@ -19,28 +22,26 @@ fig_dir <- file.path(root_dir, "results/figures")
 sp <- "Aotus.griseimembra"
 scenario <- "ssp126"
 
-# Fig. 3
-years <- c("1970-2000", "2021-2040", 
-           "2041-2060", "2061-2080", "2081-2100")
-ssps <- c("ssp126", "ssp370", "ssp585")
+# Figure 3
+bs_sens_dir <- file.path(root_dir, "results/block_radius")
+sens_cors <- read.csv(file.path(bs_sens_dir, "correlation_block_size.csv"))
+fitted_curves <- read.csv(file.path(bs_sens_dir, "fitted_curves.csv"))
 
-smr_species <- read.csv(file.path(data_dir, "smr_species.csv"))
-dat <- smr_species %>% filter(big_habitat == 1) %>% 
-  mutate(time_periods = ifelse(
-    is.na(time_periods), "1970-2000", time_periods)) %>% 
-  group_by(time_periods, ssp) %>% summarise(n = n()) %>% 
-  mutate(time_periods = factor(time_periods, levels = years, labels = years),
-         ssp = factor(ssp, levels = ssps, labels = ssps))
+ggplot(sens_cors, 
+       aes(x = radius_size, y = cor, color = as.factor(block_size))) +
+  geom_point(size = 0.7) + 
+  geom_line(
+    data = fitted_curves, 
+    aes(radius_size, pred, color = as.factor(block_size)),
+    linewidth = 0.9) +
+  scale_color_npg(name = "Block size (pixel)") +
+  xlab("Dispersal distance (pixel)") +
+  ylab("Correlation with no block") +
+  geom_hline(yintercept = 0.95, linetype = "dashed") +
+  theme_pubclean()
 
-g1 <- ggplot(data = dat) +
-  geom_point(aes(x = time_periods, y = n / max(n) * 100, color = ssp)) + 
-  geom_line(aes(x = as.integer(time_periods), 
-                y = n / max(n) * 100, color = ssp)) +
-  xlab("Time period") + ylab("Percentage of species") +
-  scale_color_bmj(name = "Climate scenario") + 
-  theme_pubclean(base_size = 12) + 
-  theme(axis.text = element_text(color = "black"),
-        plot.margin = unit(c(0, 0, 0, 0), "cm"))
+ggsave(file.path(fig_dir, "Figure5_block_radius.png"),
+       width = 5, height = 4, dpi = 300, bg = "white")
 
 # Fig. S1
 sps <- list.files(file.path(data_dir, "mamiferos"))
@@ -79,6 +80,30 @@ ggsave(file.path(fig_dir, "Figure_s_model_eval.png"),
        width = 4, height = 4, dpi = 500, bg = "white")
 
 # Fig. S2
+# Species loss
+years <- c("1970-2000", "2021-2040", 
+           "2041-2060", "2061-2080", "2081-2100")
+ssps <- c("ssp126", "ssp370", "ssp585")
+
+smr_species <- read.csv(file.path(data_dir, "smr_species.csv"))
+dat <- smr_species %>% filter(big_habitat == 1) %>% 
+  mutate(time_periods = ifelse(
+    is.na(time_periods), "1970-2000", time_periods)) %>% 
+  group_by(time_periods, ssp) %>% summarise(n = n()) %>% 
+  mutate(time_periods = factor(time_periods, levels = years, labels = years),
+         ssp = factor(ssp, levels = ssps, labels = ssps))
+
+g1 <- ggplot(data = dat) +
+  geom_point(aes(x = time_periods, y = n / max(n) * 100, color = ssp)) + 
+  geom_line(aes(x = as.integer(time_periods), 
+                y = n / max(n) * 100, color = ssp)) +
+  xlab("Time period") + ylab("Percentage of species") +
+  scale_color_bmj(name = "Climate scenario") + 
+  theme_pubclean(base_size = 10) + 
+  theme(axis.text = element_text(color = "black"),
+        plot.margin = unit(c(0, 0, 0, 0), "cm"))
+
+# Species richness
 cur_path <- "reconstruct/current/MAXENT/%s_10_MAXENT.tif"
 cur_suit_path <- "reconstruct/current/MAXENT/%s_MAXENT.tif"
 
@@ -114,33 +139,23 @@ for (sp in sps){
 
 suitability <- suitability / length(sps)
 
-g1 <- ggplot() +
+g2 <- ggplot() +
   geom_spatraster(data = richness) +
   scale_fill_grass_c(
     name = "No of species", 
     palette = "plasma", na.value = "transparent") +
   geom_sf(data = col, fill = "transparent") +
   theme_void() +
-  guides(fill = guide_colorbar(title.vjust = 0.8)) +
+  guides(fill = guide_colorbar(
+    title.hjust = 0.5, title.position = "top",
+    barheight = unit(3, "mm"))) +
   theme(legend.position = "bottom",
         plot.margin = unit(c(0, -1, 0, -1), "cm"))
 
-g2 <- ggplot() +
-  geom_spatraster(data = suitability) +
-  scale_fill_grass_c(
-    name = "Suitability", 
-    palette = "viridis", na.value = "transparent") +
-  geom_sf(data = col, fill = "transparent") +
-  theme_void() +
-  guides(fill = guide_colorbar(title.vjust = 0.8)) +
-  theme(legend.position = "bottom",
-        plot.margin = unit(c(0, -1, 0, -1), "cm"))
-
-ggarrange(g1, g2, ncol = 2, labels = c("a", "b"))
+ggarrange(g2, g1, ncol = 2, labels = c("a", "b"), widths = c(1, 2))
 
 ggsave(file.path(fig_dir, "Figure_s_species.png"),
-       width = 6, height = 4.4, dpi = 500, bg = "white")
-
+       width = 6, height = 3, dpi = 500, bg = "white")
 
 # Fig. S3
 dispersal_rate <- read.csv(file.path(
