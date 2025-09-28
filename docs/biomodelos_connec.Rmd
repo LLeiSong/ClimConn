@@ -21,23 +21,6 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
-library(ggplot2)
-library(ggpubr)
-library(sf)
-library(terra)
-library(dplyr)
-
-root_dir <- here::here()
-fname <- file.path(root_dir, "data/sp_numbers.csv")
-dispersal_path <- file.path(
-  root_dir, "data/dispersal", "species_dispersal_rate.csv")
-data_dir <- file.path(root_dir, "data/mamiferos")
-cur_path <- "ensembles/current/MAXENT/%s_10_MAXENT.tif"
-fut_paths <- sprintf(
-  "%s/2021-2040_ssp%s_10.tif", 
-  "ensembles/future/MAXENT/future_ensemble", c("126", "585"))
-aoi_path <- "interest_areas/shape_M.shp"
-crs_analysis <- "ESRI:54030"
 ```
 
 ## Set up the HPC environment
