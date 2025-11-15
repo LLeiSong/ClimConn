@@ -13,6 +13,7 @@ source("R/utils.R")
 root_dir <- here()
 data_dir <- file.path(root_dir, "data")
 result_dir <- file.path(root_dir, "results/omni")
+result_cmp <- file.path(root_dir, "results/omni_single")
 typology_dir <- file.path(root_dir, "results/typology")
 if (!dir.exists(typology_dir)) dir.create(typology_dir)
 
@@ -64,6 +65,39 @@ conn_lyrs <- do.call(c, lapply(years, function(yr){
 
 # With a buffer
 writeRaster(conn_lyrs, file.path(result_dir, "conn_lyrs.tif"),
+            overwrite = TRUE)
+
+#### Connectivity comparison #####
+ssps_cmp <- "ssp126"
+conn_lyrs <- do.call(c, lapply(years, function(yr){
+  lyrs <- do.call(c, lapply(ssps_cmp, function(ssp){
+    message(sprintf("%s %s", yr, ssp))
+    lyrs <- lapply(sps, function(sp){
+      fname <- file.path(result_cmp, ssp, sp, yr, "cum_currmap.tif")
+      if (file.exists(fname)){
+        curmap <- rast(fname)
+        curmap <- crop(curmap, template)
+        if (global(curmap, sum, na.rm = TRUE)[[1]] != 0 |
+            is.nan(global(curmap, sum, na.rm = TRUE)[[1]])){
+          curmap <- stretch(curmap, minv = 0, maxv = 1)
+          terra::extend(curmap, ext(template), fill = NA)
+        }
+      }
+    })
+    
+    while(is(lyrs, "list")){
+      lyrs <- do.call(c, lyrs)
+    }
+    
+    mask(mean(lyrs, na.rm = TRUE), col %>% st_transform(crs_analysis))
+  }))
+  
+  names(lyrs) <- sprintf("%s_%s", yr, ssps_cmp)
+  lyrs
+}))
+
+# With a buffer
+writeRaster(conn_lyrs, file.path(result_cmp, "conn_lyrs.tif"),
             overwrite = TRUE)
 
 #### Reclassify connectivity #####
@@ -122,26 +156,27 @@ for (nm in names(conn_lyrs)){
   scarp <- focal(scarp, w = w7, fun = "modal", na.rm = TRUE)
   
   # STEP 4. combine
-  classes <- cover(cover(low, top, 0), scarp * 300, 0)
+  overlap <- (top != 0) & (low != 0)
+  classes <- cover(scarp * 300, ifel(overlap, 0, top + low), 0)
   classes <- focal(classes, w = w7, fun = "modal", na.rm = TRUE)
   
   # Step 3: Set it as a categorical (factor) raster
   levels(classes) <- data.frame(
     ID = c(0, 1, 10, 111, 2, 20, 222, 300),
-    class = c("Local Street", "Through Lane", "Fast Lane", "Express Lane",
-              "Bottleneck", "No-Pass Zone", "Roadblock", "Merge Lane"))
+    class = c("Background", "Through Lane", "Freeway mainline", "Express Lane",
+              "Detour Zone", "Avoidance Zone", "Bottleneck", "Merge Lane"))
   
   fname <- file.path(typology_dir, sprintf("conn_types_%s.tif", nm))
-  writeRaster(classes, fname)
+  writeRaster(classes, fname, overwrite = TRUE)
 }
 
 classes <- data.frame(
   ID = c(0, 1, 10, 111, 2, 20, 222, 300),
-  class = c("Local Street", "Through Lane", "Fast Lane", "Express Lane",
-            "Bottleneck", "No-Pass Zone", "Roadblock", "Merge Lane"))
+  class = c("Background", "Through Lane", "Freeway mainline", "Express Lane",
+            "Detour Zone", "Avoidance Zone", "Bottleneck", "Merge Lane"))
 
 fname <- file.path(typology_dir, "connectivity_typology.csv")
-write.csv(classes, fname, row.names = FALSE)
+write.csv(classes, fname, row.names = FALSE) 
 
 # #### Extract contour lines #####
 # # Parameters

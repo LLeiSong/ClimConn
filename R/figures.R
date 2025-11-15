@@ -17,6 +17,7 @@ sf_use_s2(FALSE)
 root_dir <- here()
 data_dir <- file.path(root_dir, "data")
 result_dir <- file.path(root_dir, "results/omni")
+result_cmp <- file.path(root_dir, "results/omni_single")
 fig_dir <- file.path(root_dir, "results/figures")
 
 # Figures
@@ -45,24 +46,76 @@ ggplot(sens_cors,
 ggsave(file.path(fig_dir, "Figure3_block_radius.png"),
        width = 5, height = 4, dpi = 300, bg = "white")
 
-#### Figure 4, S4 and S5 ####
-# Figure 4
-typology_dir <- file.path(root_dir, "results/typology")
-fnames <- list.files(typology_dir, pattern = ".tif$", full.names = TRUE)
-lyrs <- rast(fnames)
-names(lyrs) <- str_extract(basename(fnames), "[0-9]{4}-[0-9]{4}_ssp[0-9]{3}")
-
+#### Figure 4 and S ####
+# Load data
+conns <- rast(file.path(result_dir, "conn_lyrs.tif"))
 col <- st_read(file.path(data_dir, "colombia.geojson")) %>% 
-  st_transform(st_crs(lyrs))
+  st_transform(st_crs(conns))
+conns <- conns %>% crop(col) %>% mask(col)
 
-lyrs <- mask(crop(lyrs, col), col)
-
-conns <- rast(file.path(result_dir, "conn_lyrs.tif")) %>% 
+conns_to_cmp <- rast(file.path(result_cmp, "conn_lyrs.tif")) %>% trim() %>% 
   crop(col) %>% mask(col)
 
-colors <- c("#f5dfbb", "#9bc1bc", "#127475", "#333d29",
-            "#f6ae2d", "#f26419", "#582f0e", "#4361ee")
+# Plot
+nms <- names(conns)
+nms <- nms[str_detect(nms, "ssp126")]
 
+lyrs <- c(trim(conns_to_cmp), trim(subset(conns, nms)))
+names(lyrs) <- letters[1:nlyr(lyrs)]
+
+ggplot() +
+  geom_spatraster(data = lyrs) +
+  scale_fill_grass_c(
+    "Connectivity (Cummulated current flow)", palette = "inferno", 
+    na.value = "transparent",
+    labels = scales::label_number(accuracy = 0.01)) +
+  facet_wrap(~lyr, ncol = 4, nrow = 2, strip.position = "left") +
+  geom_sf(data = col, color = "black", fill = "transparent", 
+          linewidth = 0.4) +
+  theme_void() +
+  theme(legend.position = "bottom",
+        legend.key.width = unit(2, "cm"),
+        legend.key.height = unit(0.2, "cm"),
+        strip.text = element_text(
+          size = 12, face = "bold", vjust = 0.9, hjust = 1),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 12),
+        panel.spacing = unit(0, "lines")) + 
+  guides(fill = guide_colourbar(title.position = "top", title.hjust = 0.5))
+
+ggsave(file.path(fig_dir, "Figure4_conns.png"),
+       width = 6.5, height = 5.3, dpi = 300, bg = "white")
+
+nms <- names(conns)
+nms <- c(nms[str_detect(nms, "ssp370")], nms[str_detect(nms, "ssp585")])
+
+lyrs <- trim(subset(conns, nms))
+names(lyrs) <- letters[1:nlyr(lyrs)]
+
+ggplot() +
+  geom_spatraster(data = lyrs) +
+  scale_fill_grass_c(
+    "Connectivity (Cummulated current flow)", palette = "inferno", 
+    na.value = "transparent",
+    labels = scales::label_number(accuracy = 0.01)) +
+  facet_wrap(~lyr, ncol = 4, nrow = 2, strip.position = "left") +
+  geom_sf(data = col, color = "black", fill = "transparent", 
+          linewidth = 0.4) +
+  theme_void() +
+  theme(legend.position = "bottom",
+        legend.key.width = unit(2, "cm"),
+        legend.key.height = unit(0.2, "cm"),
+        strip.text = element_text(
+          size = 12, face = "bold", vjust = 0.9, hjust = 1),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 12),
+        panel.spacing = unit(0, "lines")) + 
+  guides(fill = guide_colourbar(title.position = "top", title.hjust = 0.5))
+
+ggsave(file.path(fig_dir, "Figure_s_conn.png"),
+       width = 6.5, height = 5.3, dpi = 300, bg = "white")
+
+#### Figure 5 ####
 # Make data for transition
 years <- c("2021-2040", "2041-2060", "2061-2080", "2081-2100")
 ssps <- c("ssp126", "ssp370", "ssp585")
@@ -87,99 +140,7 @@ trans_df <- lapply(ssps, function(ssp){
       next_node, levels = levels(lyrs[[1]])[[1]][["ID"]],
       labels = levels(lyrs[[1]])[[1]][["class"]]))
 
-# Make plot
-g1 <- ggplot() +
-  geom_spatraster(data = conns$`2021-2040_ssp126`, na.rm = TRUE) +
-  scale_fill_grass_c("Conn.          ", palette = "inferno", 
-                     na.value = "transparent") +
-  geom_sf(data = col, color = "black", fill = "transparent", 
-          linewidth = 0.6) +
-  theme_void() +
-  theme(legend.position = c(1.4, 0.55),
-        legend.text = element_text(size = 10),
-        legend.title = element_text(size = 10),
-        legend.key.width = unit(0.3, "cm"))
-
-g2 <- ggplot() +
-  geom_spatraster(data = lyrs$`2021-2040_ssp126`, na.rm = TRUE) +
-  scale_fill_manual(
-    name = "Connectivity type", values = colors, na.translate = FALSE) +
-  geom_sf(data = col, color = "black", 
-          fill = "transparent", linewidth = 0.6) +
-  theme_void() +
-  theme(legend.position = "none",
-        legend.text = element_text(size = 11),
-        legend.title = element_text(size = 11))
-
-g1 <- g2 + inset_element(g1, left = 0.55, bottom = 0.62, right = 1, top = 1)
-
-dat <- trans_df %>% filter(ssp == "ssp126")
-
-g2 <- ggplot(dat, aes(
-  x = x,
-  next_x = next_x,
-  node = node,
-  next_node = next_node,
-  fill = node,
-  value = value
-)) + xlab("") +
-  geom_sankey(flow.alpha = 0.7) +
-  scale_fill_manual(name = "Type", values = colors) +
-  theme_sankey() +
-  theme(text = element_text(size = 11),
-        legend.position = "bottom",
-        legend.text = element_text(size = 11),
-        legend.title = element_text(size = 11),
-        axis.text.x = element_text(size = 11, angle = 90))
-
-ggarrange(ggarrange(g1, NULL, g2 + theme(legend.position = "none"), ncol = 3,
-          widths = c(1, 0.1, 1),
-          labels = c("a", "", "b")),
-          as_ggplot(get_legend(g2)), nrow = 2, heights = c(6, 1))
-
-ggsave(file.path(fig_dir, "Figure4_conn_types.png"),
-       width = 6.5, height = 5, dpi = 300, bg = "white")
-
-# Fig. S4
-figs <- lapply(names(lyrs)[-1], function(nm){
-  g1 <- ggplot() +
-    geom_spatraster(data = conns[[nm]], na.rm = TRUE) +
-    scale_fill_grass_c("Conn.", palette = "inferno", 
-                       na.value = "transparent") +
-    geom_sf(data = col, color = "black", fill = "transparent", 
-            linewidth = 0.4) +
-    theme_void() +
-    theme(legend.position = c(1.35, 0.6),
-          legend.text = element_text(size = 12),
-          legend.title = element_text(size = 12),
-          legend.key.width = unit(0.2, "cm"))
-  
-  ggplot() +
-    geom_spatraster(data = lyrs[[nm]], na.rm = TRUE) +
-    scale_fill_manual(
-      name = "Connectivity type", values = colors, na.translate = FALSE) +
-    geom_sf(data = col, color = "black", 
-            fill = "transparent", linewidth = 0.4) +
-    ggtitle(nm) +
-    theme_void() +
-    theme(legend.position = "none",
-          plot.title = element_text(
-            hjust = -1.3, vjust = -68, size = 16, face = "bold")) +
-    inset_element(g1, left = 0.55, bottom = 0.62, right = 1, top = 1)
-})
-
-ggarrange(
-  plotlist = c(figs, list(as_ggplot(
-    get_legend(g2 + theme(
-      legend.position = "right",
-      legend.title = element_text(size = 16, face = "bold"),
-      legend.text = element_text(size = 16)))))), ncol = 4, nrow = 3)
-
-ggsave(file.path(fig_dir, "Figure_s_conn_types.png"),
-       width = 13, height = 12, dpi = 300, bg = "white")
-
-# Fig. S5
-figs <- lapply(ssps[-1], function(scenario){
+figs <- lapply(ssps, function(scenario){
   dat <- trans_df %>% filter(ssp == scenario)
   
   ggplot(dat, aes(
@@ -189,24 +150,26 @@ figs <- lapply(ssps[-1], function(scenario){
     next_node = next_node,
     fill = node,
     value = value
-  )) + xlab("") + ggtitle(scenario) +
+  )) + xlab("") + 
+    ggtitle(paste0("(", letters[which(ssps == scenario)], ") ", scenario)) +
     geom_sankey(flow.alpha = 0.7) +
-    scale_fill_manual(name = "Type", values = colors) +
+    scale_fill_manual(name = "Connectivity type", values = colors) +
     theme_sankey() +
     theme(text = element_text(size = 11),
-          legend.position = "bottom",
+          legend.position = "none",
           legend.text = element_text(size = 11),
-          legend.title = element_text(size = 11),
-          axis.text.x = element_text(size = 11, angle = 90),
+          legend.title = element_text(size = 11, face = "bold"),
+          axis.text.x = element_text(size = 10, color = "black"),
           plot.title = element_text(
-            hjust = 0.5, size = 16, face = "bold"))
+            hjust = 0.5, size = 11, face = "bold"))
 })
 
-ggarrange(plotlist = figs, ncol = 2, nrow = 1,
-          common.legend = TRUE, legend = "bottom")
+ggarrange(plotlist = c(figs, list(
+  as_ggplot(get_legend(figs[[1]] + theme(legend.position = "right"))))), 
+          ncol = 2, nrow = 2)
 
-ggsave(file.path(fig_dir, "Figure_s_transition.png"),
-       width = 6.5, height = 5, dpi = 300, bg = "white")
+ggsave(file.path(fig_dir, "Figure5_transition.png"),
+       width = 6.5, height = 6, dpi = 300, bg = "white")
 
 #### Figure S1 ####
 sps <- list.files(file.path(data_dir, "mamiferos"))
