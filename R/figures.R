@@ -115,61 +115,76 @@ ggplot() +
 ggsave(file.path(fig_dir, "Figure_s_conn.png"),
        width = 6.5, height = 5.3, dpi = 300, bg = "white")
 
-#### Figure 5 ####
-# Make data for transition
-years <- c("2021-2040", "2041-2060", "2061-2080", "2081-2100")
-ssps <- c("ssp126", "ssp370", "ssp585")
+#### Figure 5 and S ####
+# Load data
+typology_dir <- file.path(root_dir, "results/typology")
+fnames <- list.files(typology_dir, pattern = ".tif$", full.names = TRUE)
+lyrs <- rast(fnames)
+names(lyrs) <- str_extract(basename(fnames), "[0-9]{4}-[0-9]{4}_ssp[0-9]{3}")
 
-trans_df <- lapply(ssps, function(ssp){
-  lyrs_ssp <- subset(lyrs, str_detect(names(lyrs), ssp))
-  
-  vals <- values(c(cellSize(lyrs_ssp[[1]], unit = "km"), lyrs_ssp))
-  vals <- vals[complete.cases(vals), , drop = FALSE] %>% 
-    as_tibble()
-  names(vals) <- c("area", years)
-  
-  vals %>% 
-    count(`2021-2040`, `2041-2060`, `2061-2080`, `2081-2100`, wt = area) %>% 
-    make_long(`2021-2040`, `2041-2060`, `2061-2080`, `2081-2100`, value = n) %>% 
-    mutate(ssp = ssp)
-}) %>% bind_rows() %>% data.frame() %>% 
-  mutate(node = factor(
-    node, levels = levels(lyrs[[1]])[[1]][["ID"]],
-    labels = levels(lyrs[[1]])[[1]][["class"]]),
-    next_node = factor(
-      next_node, levels = levels(lyrs[[1]])[[1]][["ID"]],
-      labels = levels(lyrs[[1]])[[1]][["class"]]))
+col <- st_read(file.path(data_dir, "colombia.geojson")) %>% 
+  st_transform(st_crs(lyrs))
 
-figs <- lapply(ssps, function(scenario){
-  dat <- trans_df %>% filter(ssp == scenario)
-  
-  ggplot(dat, aes(
-    x = x,
-    next_x = next_x,
-    node = node,
-    next_node = next_node,
-    fill = node,
-    value = value
-  )) + xlab("") + 
-    ggtitle(paste0("(", letters[which(ssps == scenario)], ") ", scenario)) +
-    geom_sankey(flow.alpha = 0.7) +
-    scale_fill_manual(name = "Connectivity type", values = colors) +
-    theme_sankey() +
-    theme(text = element_text(size = 11),
-          legend.position = "none",
-          legend.text = element_text(size = 11),
-          legend.title = element_text(size = 11, face = "bold"),
-          axis.text.x = element_text(size = 10, color = "black"),
-          plot.title = element_text(
-            hjust = 0.5, size = 11, face = "bold"))
-})
+lyrs <- mask(crop(lyrs, col), col)
+classes <- read.csv(file.path(typology_dir, "connectivity_typology.csv"))
 
-ggarrange(plotlist = c(figs, list(
-  as_ggplot(get_legend(figs[[1]] + theme(legend.position = "right"))))), 
-          ncol = 2, nrow = 2)
+colors <- c("#9bc1bc", "#127475",
+            "#f6ae2d", "#f26419", "#f5dfbb")
 
-ggsave(file.path(fig_dir, "Figure5_transition.png"),
-       width = 6.5, height = 6, dpi = 300, bg = "white")
+# Plot
+nms <- names(lyrs)
+dat <- subset(lyrs, nms[str_detect(nms, "ssp126")])
+levels(dat) <- lapply(1:nlyr(dat), function(x) classes[, c("ID", "name")]) 
+names(dat) <- letters[1:nlyr(dat)]
+
+ggplot() +
+  geom_spatraster(data = dat, na.rm = TRUE) +
+  scale_fill_manual(
+    name = "Connectivity type", values = colors, 
+    breaks = c(levels(dat[[1]])[[1]]$name[-1], "Background"),
+    na.translate = FALSE) +
+  facet_wrap(~lyr, ncol = 4, nrow = 1, strip.position = "left") +
+  geom_sf(data = col, color = "black", fill = "transparent", 
+          linewidth = 0.4) +
+  theme_void() +
+  theme(legend.position = "bottom",
+        strip.text = element_text(
+          size = 12, face = "bold", vjust = 0.9, hjust = 1),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 12, face = "bold"),
+        panel.spacing = unit(0, "lines")) + 
+  guides(fill = guide_legend(
+    title.position = "top", title.hjust = 0.5, nrow = 2))
+
+ggsave(file.path(fig_dir, "Figure5_conn_types.png"),
+       width = 6.5, height = 3.2, dpi = 300, bg = "white")
+
+dat <- subset(lyrs, c(nms[str_detect(nms, "ssp370")], 
+                      nms[str_detect(nms, "ssp585")]))
+levels(dat) <- lapply(1:nlyr(dat), function(x) classes[, c("ID", "name")])
+names(dat) <- letters[1:nlyr(dat)]
+
+ggplot() +
+  geom_spatraster(data = dat, na.rm = TRUE) +
+  scale_fill_manual(
+    name = "Connectivity type", values = colors, 
+    breaks = c(levels(dat[[1]])[[1]]$name[-1], "Background"),
+    na.translate = FALSE) +
+  facet_wrap(~lyr, ncol = 4, nrow = 2, strip.position = "left") +
+  geom_sf(data = col, color = "black", fill = "transparent", 
+          linewidth = 0.4) +
+  theme_void() +
+  theme(legend.position = "bottom",
+        strip.text = element_text(
+          size = 12, face = "bold", vjust = 0.9, hjust = 1),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 12, face = "bold"),
+        panel.spacing = unit(0, "lines")) + 
+  guides(fill = guide_legend(
+    title.position = "top", title.hjust = 0.5, nrow = 2))
+
+ggsave(file.path(fig_dir, "Figure_s_conn_types_simple.png"),
+       width = 6.5, height = 5.5, dpi = 300, bg = "white")
 
 #### Figure S1 ####
 sps <- list.files(file.path(data_dir, "mamiferos"))
