@@ -1,11 +1,21 @@
-## Check and clean the Biomodelos species
-## Because some species might not be suitable to model connectivity
-## we need to check and remove these species
-## - Marine species
-## - Aquatic species
-## - Domestic species
-## - Extinct species
-## Author: Lei Song (lei.song@rutgers.edu)
+# ============================================================
+# Script: 1.1_scrutinize_species.R
+#
+# Purpose:
+#   Clean BioModelos mammal species before connectivity modeling
+#   by removing marine, freshwater, non terrestrial, and non wild species.
+#
+# Inputs:
+#   data/mamiferos/                 BioModelos species folders
+#   data/IUCN/MAMMALS/MAMMALS.shp   IUCN mammal attributes
+#
+# Outputs:
+#   data/species_info_mc.csv        species to check manually
+#   data/mammal_species_conn.rda    final species list for connectivity
+#
+# Author: Lei Song <lei.song@rutgers.edu>
+# Last updated: 2025-11-21
+# ============================================================
 
 # Load libraries
 library(sf)

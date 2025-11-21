@@ -1,5 +1,28 @@
-## Check the reconstruct results
-## Author: Lei Song (lei.song@rutgers.edu)
+# ============================================================
+# Script: 2.3_check_reconstruct.R
+#
+# Purpose:
+#   Check completeness and consistency of reconstructed MAXENT results:
+#     - Verify M_variables, kuenm/MaxEnt projections, and ensembles
+#     - Summarize missing outputs per species
+#     - Compare original vs reconstructed suitability surfaces
+#     - Clean temporary variables and intermediate prediction files.
+#
+# Inputs:
+#   data/mamiferos/<species>/      reconstructed outputs from 2.2_reconstruct_models.R
+#
+# Outputs:
+#   data/species_miss_var.csv              species missing M_variables
+#   data/species_miss_maxent.csv           species missing MaxEnt projections
+#   data/species_miss_current.csv          species missing current ensembles
+#   data/species_miss_future.csv           species missing future ensembles
+#   data/species_miss_future_ensemble.csv  species missing future_ensemble
+#   data/species_miss.csv                  union of all missing species
+#   data/suit_cors.csv                     correlation of original vs reconstructed suitability
+#
+# Author: Lei Song <lei.song@rutgers.edu>
+# Last updated: 2025-11-21
+# ============================================================
 
 # Load libraries
 library(dplyr)

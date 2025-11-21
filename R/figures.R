@@ -1,3 +1,47 @@
+# ============================================================
+# Script: figures.R
+#
+# Purpose:
+#   Generate all manuscript figures from pre-computed results:
+#     - Fig. 3: Block size vs. dispersal radius correlation curves
+#     - Fig. 4 & S: Connectivity ensembles and typology maps
+#     - Fig. S1: Model evaluation (AUC, reconstruction correlations)
+#     - Fig. S2: Species loss over time and current richness map
+#     - Fig. S3: Dispersal rate distribution by mammal order.
+#
+# Inputs:
+#   data/                                 core data and shapefiles
+#     colombia.geojson
+#     Env/M_variable/vars.tif
+#     smr_species.csv
+#     suit_cors.csv
+#     dispersal/species_dispersal_rate.csv
+#   results/omni/                         main Omniscape connectivity
+#     conn_lyrs.tif
+#   results/omni_single/                  single-run connectivity
+#     conn_lyrs.tif
+#   results/block_radius/                 block–radius sensitivity
+#     correlation_block_size.csv
+#     fitted_curves.csv
+#   results/typology/                     connectivity typology
+#     conn_types_*.tif
+#     connectivity_typology.csv
+#
+# Outputs (in results/figures/):
+#   Figure3_block_radius.png
+#   Figure4_conn_all.png
+#   Figure_s_conn.png
+#   Figure5_conn_types.png (optional, commented in code)
+#   Figure_s_conn_types_simple.png
+#   Figure_s_model_eval.png
+#   Figure_s_species.png
+#   Figure_s_dispersal.png
+#
+# Author: Lei Song <lei.song@rutgers.edu>
+# Last updated: 2025-11-21
+# ============================================================
+
+# Load libraries
 library(ggplot2)
 library(tidyterra)
 library(ggsci)
@@ -46,7 +90,7 @@ ggplot(sens_cors,
 ggsave(file.path(fig_dir, "Figure3_block_radius.png"),
        width = 5, height = 4, dpi = 300, bg = "white")
 
-#### Figure 4 and S ####
+#### Figure 4 and Ss ####
 # Load data
 conns <- rast(file.path(result_dir, "conn_lyrs.tif"))
 col <- st_read(file.path(data_dir, "colombia.geojson")) %>% 
@@ -63,7 +107,7 @@ nms <- nms[str_detect(nms, "ssp126")]
 lyrs <- c(trim(conns_to_cmp), trim(subset(conns, nms)))
 names(lyrs) <- letters[1:nlyr(lyrs)]
 
-ggplot() +
+g1 <- ggplot() +
   geom_spatraster(data = lyrs) +
   scale_fill_grass_c(
     "Connectivity (Cummulated current flow)", palette = "inferno", 
@@ -83,8 +127,8 @@ ggplot() +
         panel.spacing = unit(0, "lines")) + 
   guides(fill = guide_colourbar(title.position = "top", title.hjust = 0.5))
 
-ggsave(file.path(fig_dir, "Figure4_conns.png"),
-       width = 6.5, height = 5.3, dpi = 300, bg = "white")
+# ggsave(file.path(fig_dir, "Figure4_conns.png"),
+#        width = 6.5, height = 5.3, dpi = 300, bg = "white")
 
 nms <- names(conns)
 nms <- c(nms[str_detect(nms, "ssp370")], nms[str_detect(nms, "ssp585")])
@@ -115,7 +159,7 @@ ggplot() +
 ggsave(file.path(fig_dir, "Figure_s_conn.png"),
        width = 6.5, height = 5.3, dpi = 300, bg = "white")
 
-#### Figure 5 and S ####
+## Another part of Figure 4.
 # Load data
 typology_dir <- file.path(root_dir, "results/typology")
 fnames <- list.files(typology_dir, pattern = ".tif$", full.names = TRUE)
@@ -131,13 +175,24 @@ classes <- read.csv(file.path(typology_dir, "connectivity_typology.csv"))
 colors <- c("#9bc1bc", "#127475",
             "#f6ae2d", "#f26419", "#f5dfbb")
 
+# Check area numbers
+areas <- lapply(names(lyrs), function(nm){
+  zonal(cellSize(lyrs[[nm]], unit = "km"), 
+        lyrs[[nm]], fun = "sum") %>% data.frame() %>% 
+    arrange(names(.)[1]) %>% 
+    select(area) %>% mutate(area = area / sum(area) * 100) %>% 
+    rename({{nm}} := "area")
+}) %>% bind_cols() %>% 
+  mutate(type = levels(lyrs[[1]])[[1]] %>% 
+           arrange(value) %>% pull(class), .before = 1)
+
 # Plot
 nms <- names(lyrs)
 dat <- subset(lyrs, nms[str_detect(nms, "ssp126")])
 levels(dat) <- lapply(1:nlyr(dat), function(x) classes[, c("ID", "name")]) 
-names(dat) <- letters[1:nlyr(dat)]
+names(dat) <- letters[9:(8 + nlyr(dat))]
 
-ggplot() +
+g2 <- ggplot() +
   geom_spatraster(data = dat, na.rm = TRUE) +
   scale_fill_manual(
     name = "Connectivity type", values = colors, 
@@ -156,8 +211,13 @@ ggplot() +
   guides(fill = guide_legend(
     title.position = "top", title.hjust = 0.5, nrow = 2))
 
-ggsave(file.path(fig_dir, "Figure5_conn_types.png"),
-       width = 6.5, height = 3.2, dpi = 300, bg = "white")
+# ggsave(file.path(fig_dir, "Figure5_conn_types.png"),
+#        width = 6.5, height = 3.2, dpi = 300, bg = "white")
+
+ggarrange(g1, g2, ncol = 1, nrow = 2, heights = c(5.3, 3.2))
+
+ggsave(file.path(fig_dir, "Figure4_conn_all.png"),
+       width = 6.5, height = 8.5, dpi = 300, bg = "white")
 
 dat <- subset(lyrs, c(nms[str_detect(nms, "ssp370")], 
                       nms[str_detect(nms, "ssp585")]))

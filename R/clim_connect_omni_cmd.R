@@ -1,8 +1,43 @@
+# ============================================================
+# Script: clim_connect_omni_cmd.R
+#
+# Purpose:
+#   Helper functions for Omniscape-based climate connectivity:
+#     - get_suit_block(): choose block_size from radius–block lookup
+#     - clim_connect(): climate-warped connectivity (chains time steps)
+#     - clim_connect_single(): baseline connectivity (no chaining).
+#
+# Used by:
+#   - 3.1_block_size_sensitivity.R
+#   - 4.2_bmd_connect_warp.R
+#   - (and other scripts that call clim_connect / clim_connect_single)
+#
+# Inputs (per call):
+#   sp                species name (used as folder name)
+#   disersal_dists    vector of dispersal radii between time steps (in cells)
+#   suit_list         raster stack of suitability per time period
+#   habitat_list      raster stack of habitat patches per time period
+#   time_periods      character vector of time labels (same length as stacks)
+#   work_dir          base output directory for Omniscape runs
+#   config            Omniscape config list (from ini::read.ini)
+#   allow_min_radius  data.frame with allow_min_radius × block_size
+#   julia_home        path to Julia binary (for run_omniscape.jl)
+#
+# Outputs (side effects):
+#   work_dir/<sp>/<time_period>/cum_currmap.tif and other Omniscape products
+#   (created or skipped if already present).
+#
+# Author: Lei Song <lei.song@rutgers.edu>
+# Last updated: 2025-11-21
+# ============================================================
+
+# Load libraries
 library(ini)
 library(terra)
 library(sf)
 library(dplyr)
 
+# Function to get suitable block size
 get_suit_block <- function(x, df){
   df <- df[order(df$allow_min_radius), ]
   matched_row <- tail(df[df$allow_min_radius <= x, ], 1)
@@ -11,6 +46,7 @@ get_suit_block <- function(x, df){
   return(matched_row$block_size)
 }
 
+# Define the function to do climate connectivity modeling
 clim_connect <- function(sp,
                          disersal_dists,
                          suit_list,
@@ -106,7 +142,7 @@ clim_connect <- function(sp,
 }
 
 # Do not link prior time stamp
-# This function provides a comparison.
+# This function provides a comparison to the proposed approach.
 clim_connect_single <- function(sp,
                          disersal_dists,
                          suit_list,

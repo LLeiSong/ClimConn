@@ -1,3 +1,25 @@
+# ============================================================
+# Script: 3.2_pair_size_radius.R
+#
+# Purpose:
+#   Derive a rule of thumb linking Omniscape block size to dispersal radius:
+#     - Compute correlations between block_size runs and block_size = 1 baseline
+#     - Fit logistic curves of cor ~ radius_size for each block size
+#     - Identify minimum radius allowing a given block size at target correlation.
+#
+# Inputs:
+#   results/omni_block_size/<sp>/2021-2040_*   cum_currmap_*.tif + config.ini
+#
+# Outputs (in results/block_radius/):
+#   correlation_block_size.csv   correlations by species × block_size
+#   fit_curves.rda               nls objects for each block_size
+#   allow_min_radius.csv         min radius allowed per block_size at cor_target
+#   fitted_curves.csv            smoothed fitted curves over radius_size
+#
+# Author: Lei Song <lei.song@rutgers.edu>
+# Last updated: 2025-11-21
+# ============================================================
+
 # Loading parameters
 library(here)
 library(dplyr)

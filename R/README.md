@@ -1,3 +1,25 @@
+## Prerequisites
+
+- R (>= 4.x), Julia (>= 1.x), WhiteboxTools, GDAL/PROJ.
+- R packages: sf, terra, dplyr, readxl, here, stringr, optparse, ini,
+  rnaturalearth, RCurl, smoothr, stars, rmapshaper, whitebox,
+  ggplot2, tidyterra, ggsci, ggpubr, patchwork, ggsankey, parallel, tidyr.
+
+Clone the repo and set your working directory to the project root
+(e.g., via an RStudio project). Scripts assume paths are relative to this root.
+
+### Required data in `data/`
+
+- `mamiferos/` – BioModelos SDM outputs, one folder per species.
+- `IUCN/MAMMALS/MAMMALS.shp` – IUCN mammals shapefile.
+- `dispersal/Generation Lenght for Mammals.xlsx` – trait data (body mass & generation length).
+- `colombia.geojson` – Colombia boundary polygon.
+- `config/omniscape_setting_template.ini` – Omniscape configuration template.
+
+Other folders (`Env/`, `dispersal/species_dispersal_rate.csv`,
+`results/`, etc.) are created by the scripts below.
+
+
 ## Select species and identify species traits
 
 1. Run `1.1_scrutinize_species.R` to remote marine or freshwater only species from the species list of BioModelos.

@@ -1,3 +1,33 @@
+# ============================================================
+# Script: 4.2_bmd_connect_warp.R
+#
+# Purpose:
+#   Run Omniscape-based climate connectivity for selected BioModelos species:
+#     - Prepare current and future habitat patches and suitability rasters
+#     - Use block_size–radius relationship (allow_min_radius) to choose settings
+#     - Call clim_connect to generate time-warped connectivity surfaces.
+#
+# Inputs:
+#   Command-line:
+#     -s / --sp        species name(s), comma-separated (folder names in data/mamiferos)
+#     -o / --scenario  climate scenario (e.g., ssp126, ssp370, ssp585)
+#
+#   Files:
+#     data/mamiferos/<sp>/reconstruct/current/MAXENT/       current binary/suitability
+#     data/mamiferos/<sp>/reconstruct/future/...            future binary/suitability
+#     data/mamiferos/<sp>/interest_areas/shape_M.shp        species AOI
+#     data/colombia.geojson                                Colombia boundary
+#     data/dispersal/species_dispersal_rate.csv            species dispersal rates
+#     results/block_radius/allow_min_radius.csv            block_size–radius lookup
+#     data/config/omniscape_setting_template.ini           Omniscape config template
+#
+# Outputs:
+#   results/omni/<scenario>/<sp>/...  Omniscape connectivity outputs (created by clim_connect)
+#
+# Author: Lei Song <lei.song@rutgers.edu>
+# Last updated: 2025-11-21
+# ============================================================
+
 # Load libraries
 library(ini)
 library(readxl)

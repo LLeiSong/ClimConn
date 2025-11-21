@@ -1,6 +1,28 @@
-## Download Worldclim Version 2.0 data
-## All species use enmeval package for tuning and kuenm for projection
-## Author: Lei Song (lei.song@rutgers.edu)
+# ============================================================
+# Script: 2.1_prepare_variables.R
+#
+# Purpose:
+#   Prepare environmental predictor variables for BioModelos
+#   MaxEnt/enmeval/kuenm workflow:
+#     - Parse MaxEnt logs to get variable sets and GCMs
+#     - Download WorldClim v2.1 current and CMIP6 future layers
+#     - Clip to Colombia / study region
+#     - Organize files into MaxEnt-ready M_variable and G_variable folders.
+#
+# Inputs:
+#   data/mamiferos/                 species folders with final_models_enmeval and interest_areas/shape_M.shp
+#   data/colombia.geojson           study area boundary
+#   WorldClim v2.1 + CMIP6 (online) climate and elevation layers
+#
+# Outputs:
+#   data/Env/                       clipped and stacked baseline/future rasters
+#   data/Env/M_variable/vars.tif    training stack
+#   data/Env/G_variable/...         scenario-specific bio_*.asc layers
+#   data/mamiferos/*/M_variables/   per-species M-variable ASCII grids
+#
+# Author: Lei Song <lei.song@rutgers.edu>
+# Last updated: 2025-11-21
+# ============================================================
 
 # Load libraries
 library(sf)

@@ -1,7 +1,35 @@
-## Reconstruct BioModelos for selected species
-## This script is constructed highly relying on 
-## https://github.com/PEM-Humboldt/biomodelos-sdm.git
-## Author: Lei Song (lei.song@rutgers.edu)
+# ============================================================
+# Script: 2.2_reconstruct_models.R
+#
+# Purpose:
+#   Reconstruct BioModelos MAXENT models for selected species using kuenm:
+#     - Reformat occurrences for kuenm
+#     - Refit / project models with prepared M/G variables
+#     - Build current and future ensembles and binary maps.
+#
+# Inputs:
+#   data/mamiferos/<species>/occurrences/jointID_occ.csv
+#   data/mamiferos/<species>/M_variables/Set_1/         M-variable grids
+#   data/mamiferos/<species>/ensembles/current/MAXENT/binValues_MAXENT.csv
+#   data/Env/G_variable/                                G-variable grids for projections
+#
+# Outputs (per species):
+#   data/mamiferos/<species>/occurrences/occ_joint_kuenm.csv
+#   data/mamiferos/<species>/final_models_enmeval_r/    kuenm MAXENT runs and projections
+#   data/mamiferos/<species>/reconstruct/current/MAXENT/  current ensembles (cont. + binary)
+#   data/mamiferos/<species>/reconstruct/future/MAXENT/   future ensembles by scenario
+#   data/mamiferos/<species>/reconstruct/future/MAXENT/future_ensemble/  final future ensembles
+#
+# Usage:
+#   Rscript 2.2_reconstruct_models.R -f "Species_one,Species_two"
+#
+# Reference:
+# This script is constructed highly relying on 
+# https://github.com/PEM-Humboldt/biomodelos-sdm.git
+#
+# Author: Lei Song <lei.song@rutgers.edu>
+# Last updated: 2025-11-21
+# ============================================================
 
 # Load libraries
 library(sf)

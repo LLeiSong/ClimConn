@@ -1,10 +1,32 @@
-## Sensitivity analysis of radius and block size in omniscape
-## Author: Lei Song (lei.song@rutgers.edu)
-## Date: 09-20-2025
-## Objective: of course using block = =1 would give us the most accurate pixel
-## level results, but it is very time consuming. If the future possible habitat
-## is large, it will take forever to run. This script is to run a few example
-## species to detect a rule of thumb to select block size based on radius.
+# ============================================================
+# Script: 3.1_block_size_sensitivity.R
+#
+# Purpose:
+#   Sensitivity analysis of Omniscape block size vs. dispersal radius:
+#     - Select representative species with intermediate dispersal distances
+#     - Run Omniscape repeatedly for each species with varying block_size
+#     - Generate cumulative current maps to derive a rule of thumb
+#       for choosing block size given a radius.
+#
+# Inputs:
+#   data/smr_species.csv                    summary species table with time periods & SSPs
+#   data/dispersal/species_dispersal_rate.csv  species-level dispersal rates
+#   data/colombia.geojson                   Colombia boundary
+#   data/mamiferos/<sp>/reconstruct/...     current & future habitat / suitability rasters
+#   data/config/omniscape_setting_template.ini  Omniscape configuration template
+#
+# Outputs:
+#   results/omni_block_size/<sp>/2021-2040_*  cum_currmap_*.tif for multiple block sizes
+#
+# Usage guidance:
+# Objective: of course using block = =1 would give us the most accurate pixel
+# level results, but it is very time consuming. If the future possible habitat
+# is large, it will take forever to run. This script is to run a few example
+# species to detect a rule of thumb to select block size based on radius.
+#
+# Author: Lei Song <lei.song@rutgers.edu>
+# Last updated: 2025-11-21
+# ============================================================
 
 # Load libraries
 library(dplyr)

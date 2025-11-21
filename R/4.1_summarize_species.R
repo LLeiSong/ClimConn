@@ -1,11 +1,27 @@
-## Summarize species information
-## Author: Lei Song (lei.song@rutgers.edu)
-## Date: 08-20-2025
-## Objective: checking the species info: current range size, future range sizes,
-## their overlaps, whether a species has or has large habitat, and whether
-## current and future habitats will have connection within their ability.
-## Such information is helpful to further select species for a more targeted
-## conservation objective.
+# ============================================================
+# Script: 4.1_summarize_species.R
+#
+# Purpose:
+#   Summarize species-level habitat status and connectivity potential:
+#     - Quantify current and minimum future habitat area in Colombia
+#     - Check if species have any / sufficiently large habitat patches
+#     - Assess whether current and future habitats remain connected
+#       within species-specific dispersal abilities.
+#
+# Inputs:
+#   data/mamiferos/<sp>/reconstruct/current/MAXENT/   current binary/suitability rasters
+#   data/mamiferos/<sp>/reconstruct/future/...        future binary rasters (all SSPs/periods)
+#   data/mamiferos/<sp>/interest_areas/shape_M.shp    species AOI
+#   data/colombia.geojson                             Colombia boundary
+#   data/dispersal/species_dispersal_rate.csv         species-level dispersal rates
+#
+# Outputs:
+#   data/smr_species.csv          running table of species × SSP summary (append mode)
+#   data/smr_species_final.csv    full combined summary across all SSPs
+#
+# Author: Lei Song <lei.song@rutgers.edu>
+# Last updated: 2025-11-21
+# ============================================================
 
 # Load libraries
 library(readxl)

@@ -1,3 +1,32 @@
+# ============================================================
+# Script: 5_ensemble_typify_connectivity.R
+#
+# Purpose:
+#   Ensemble and typify connectivity maps:
+#     - Average Omniscape cumulative current maps across species
+#       for each year × SSP combination
+#     - Create a single-species comparison ensemble (ssp126)
+#     - Derive a categorical connectivity typology (F1/F2/I1/I2)
+#       using sinks/peaks and upper/lower quantiles.
+#
+# Inputs:
+#   data/colombia.geojson                        Colombia boundary
+#   data/Env/M_variable/vars.tif                 template raster (for grid)
+#   data/smr_species.csv                         species summary (to select sps)
+#   results/omni_single/<ssp>/<sp>/<year>/cum_currmap.tif  single-species runs
+#   results/omni/<ssp>/<sp>/<year>/cum_currmap.tif         main Omniscape runs
+#
+# Outputs:
+#   results/omni_single/conn_lyrs.tif            ensemble (ssp126) connectivity stack
+#   results/omni/conn_lyrs.tif                   multi-SSP ensemble connectivity stack
+#   results/typology/conn_types_<year>_<ssp>.tif connectivity typology rasters
+#   results/typology/connectivity_typology.csv   class catalog (Background, F1, F2, I1, I2)
+#
+# Author: Lei Song <lei.song@rutgers.edu>
+# Last updated: 2025-11-21
+# ============================================================
+
+# Load libraries and functions
 library(here)
 library(smoothr)
 library(stars)
@@ -151,6 +180,7 @@ for (nm in names(conn_lyrs)){
   writeRaster(classes, fname, overwrite = TRUE)
 }
 
+# Write out the class catalog
 classes <- data.frame(
   ID = c(0, 1, 11, 2, 22),
   class = c("Background", "F1", "F2", "I1", "I2"),

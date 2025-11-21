@@ -1,3 +1,24 @@
+# ============================================================
+# Script: 1.2_dispersal_rate.R
+#
+# Purpose:
+#   Estimate natal dispersal distance and annual dispersal rate
+#   for BioModelos mammal species using body mass and generation length,
+#   and fill missing values with order-level medians.
+#
+# Inputs:
+#   data/mamiferos/                                BioModelos species folders
+#   data/dispersal/Generation Lenght for Mammals.xlsx  mammal traits (body mass, generation length)
+#   GBIF (or similar) API for taxonomic order lookup via classification()
+#
+# Output:
+#   data/dispersal/species_dispersal_rate.csv      species-level dispersal rates
+#
+# Author: Lei Song <lei.song@rutgers.edu>
+# Last updated: 2025-11-21
+# ============================================================
+
+# Load library and define dirs
 library(readxl)
 root_dir <- "/home/lsong/ClimConn"
 
