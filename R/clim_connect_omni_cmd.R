@@ -141,7 +141,7 @@ clim_connect <- function(sp,
   }
 }
 
-# Do not link prior time stamp
+# Do not link prior time stamp [ONLY FOR COMPARISON]
 # This function provides a comparison to the proposed approach.
 clim_connect_single <- function(sp,
                          disersal_dists,
