@@ -55,6 +55,7 @@ library(terra)
 library(stringr)
 library(patchwork)
 library(ggsankey)
+library(ggpattern)
 sf_use_s2(FALSE)
 
 # Setting
@@ -69,7 +70,7 @@ fig_dir <- file.path(root_dir, "results/figures")
 sp <- "Aotus.griseimembra"
 scenario <- "ssp126"
 
-#### Figure 3 ####
+#### Figure S4 ####
 bs_sens_dir <- file.path(root_dir, "results/block_radius")
 sens_cors <- read.csv(file.path(bs_sens_dir, "correlation_block_size.csv"))
 fitted_curves <- read.csv(file.path(bs_sens_dir, "fitted_curves.csv"))
@@ -90,15 +91,15 @@ ggplot(sens_cors,
 ggsave(file.path(fig_dir, "Figure3_block_radius.png"),
        width = 5, height = 4, dpi = 300, bg = "white")
 
-#### Figure 4 and Ss ####
+#### Figure 3 ####
 # Load data
-conns <- rast(file.path(result_dir, "conn_lyrs.tif"))
+conns <- rast(file.path(result_dir, "conn_lyrs_a_mean.tif"))
 col <- st_read(file.path(data_dir, "colombia.geojson")) %>% 
   st_transform(st_crs(conns))
 conns <- conns %>% crop(col) %>% mask(col)
 
-conns_to_cmp <- rast(file.path(result_cmp, "conn_lyrs.tif")) %>% trim() %>% 
-  crop(col) %>% mask(col)
+conns_to_cmp <- rast(file.path(result_cmp, "conn_lyrs_a_mean.tif")) %>% 
+  trim() %>% crop(col) %>% mask(col)
 
 # Plot
 nms <- names(conns)
@@ -107,144 +108,390 @@ nms <- nms[str_detect(nms, "ssp126")]
 lyrs <- c(trim(conns_to_cmp), trim(subset(conns, nms)))
 names(lyrs) <- letters[1:nlyr(lyrs)]
 
-g1 <- ggplot() +
-  geom_spatraster(data = lyrs) +
-  scale_fill_grass_c(
-    "Connectivity (Cummulated current flow)", palette = "inferno", 
-    na.value = "transparent",
-    labels = scales::label_number(accuracy = 0.01)) +
-  facet_wrap(~lyr, ncol = 4, nrow = 2, strip.position = "left") +
-  geom_sf(data = col, color = "black", fill = "transparent", 
-          linewidth = 0.4) +
-  theme_void() +
-  theme(legend.position = "bottom",
-        legend.key.width = unit(2, "cm"),
-        legend.key.height = unit(0.2, "cm"),
-        strip.text = element_text(
-          size = 12, face = "bold", vjust = 0.9, hjust = 1),
-        legend.text = element_text(size = 12),
-        legend.title = element_text(size = 12),
-        panel.spacing = unit(0, "lines")) + 
-  guides(fill = guide_colourbar(title.position = "top", title.hjust = 0.5))
-
-# ggsave(file.path(fig_dir, "Figure4_conns.png"),
-#        width = 6.5, height = 5.3, dpi = 300, bg = "white")
-
-nms <- names(conns)
-nms <- c(nms[str_detect(nms, "ssp370")], nms[str_detect(nms, "ssp585")])
-
-lyrs <- trim(subset(conns, nms))
-names(lyrs) <- letters[1:nlyr(lyrs)]
-
 ggplot() +
   geom_spatraster(data = lyrs) +
   scale_fill_grass_c(
-    "Connectivity (Cummulated current flow)", palette = "inferno", 
+    "Connectivity\n(Mean current flow)", palette = "inferno", 
     na.value = "transparent",
     labels = scales::label_number(accuracy = 0.01)) +
   facet_wrap(~lyr, ncol = 4, nrow = 2, strip.position = "left") +
   geom_sf(data = col, color = "black", fill = "transparent", 
           linewidth = 0.4) +
   theme_void() +
-  theme(legend.position = "bottom",
-        legend.key.width = unit(2, "cm"),
-        legend.key.height = unit(0.2, "cm"),
+  theme(legend.position = "right",
+        legend.key.width = unit(0.2, "cm"),
+        legend.key.height = unit(0.6, "cm"),
         strip.text = element_text(
           size = 12, face = "bold", vjust = 0.9, hjust = 1),
-        legend.text = element_text(size = 12),
-        legend.title = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        legend.title = element_text(size = 11),
         panel.spacing = unit(0, "lines")) + 
   guides(fill = guide_colourbar(title.position = "top", title.hjust = 0.5))
 
-ggsave(file.path(fig_dir, "Figure_s_conn.png"),
-       width = 6.5, height = 5.3, dpi = 300, bg = "white")
+ggsave(file.path(fig_dir, "Figure3_compare.png"),
+       width = 6.5, height = 3, dpi = 300, bg = "white")
 
-## Another part of Figure 4.
+#### Figure 4 ####
 # Load data
-typology_dir <- file.path(root_dir, "results/typology")
-fnames <- list.files(typology_dir, pattern = ".tif$", full.names = TRUE)
-lyrs <- rast(fnames)
-names(lyrs) <- str_extract(basename(fnames), "[0-9]{4}-[0-9]{4}_ssp[0-9]{3}")
-
+a_means <- rast(file.path(result_dir, "conn_lyrs_a_mean.tif"))
 col <- st_read(file.path(data_dir, "colombia.geojson")) %>% 
-  st_transform(st_crs(lyrs))
+  st_transform(st_crs(a_means))
+a_means <- a_means %>% crop(col) %>% mask(col)
 
-lyrs <- mask(crop(lyrs, col), col)
+g_means <- rast(file.path(result_dir, "conn_lyrs_g_mean.tif")) %>% 
+  crop(col) %>% mask(col)
+
+sums <- rast(file.path(result_dir, "conn_lyrs_sum.tif")) %>% 
+  crop(col) %>% mask(col)
+
+# Single species
+sp <- "Puma.concolor"
+conn_sp <- rast(
+  file.path(result_dir, "ssp126", sp, "2081-2100/cum_currmap.tif"))
+conn_sp <- trim(stretch(conn_sp, minv = 0, maxv = 1))
+
+# Plot
+nms <- names(a_means)
+nms <- nms[str_detect(nms, "2081-2100_ssp126")]
+
+lyrs <- c(trim(subset(a_means, nms)), trim(subset(g_means, nms)),
+          trim(subset(sums, nms)))
+names(lyrs) <- letters[1:nlyr(lyrs)]
+
+g1 <- ggplot() +
+  geom_spatraster(data = conn_sp) +
+  scale_fill_grass_c(
+    expression(atop(Connectivity, italic("(Puma concolor)"))),
+    palette = "inferno", 
+    na.value = "transparent",
+    labels = scales::label_number(accuracy = 0.1)) +
+  geom_sf(data = col, color = "black", fill = "transparent", 
+          linewidth = 0.4) +
+  theme_void() +
+  theme(legend.position = "bottom",
+        legend.key.width = unit(0.7, "cm"),
+        legend.key.height = unit(0.2, "cm"),
+        legend.text = element_text(size = 10),
+        legend.title = element_text(size = 10),
+        plot.margin = margin(0, 0, 0, 0, "mm")) + 
+  guides(fill = guide_colourbar(title.position = "top", title.hjust = 0.5))
+
+g2 <- ggplot() +
+  geom_spatraster(data = trim(subset(a_means, nms)) * 10) +
+  scale_fill_grass_c(
+    expression(atop(Connectivity, "(Arithmetic mean 10"^-1*")")), 
+    palette = "inferno", 
+    na.value = "transparent",
+    labels = scales::label_number(accuracy = 1)) +
+  geom_sf(data = col, color = "black", fill = "transparent", 
+          linewidth = 0.4) +
+  theme_void() +
+  theme(legend.position = "bottom",
+        legend.key.width = unit(0.7, "cm"),
+        legend.key.height = unit(0.2, "cm"),
+        legend.text = element_text(size = 10),
+        legend.title = element_text(size = 10),
+        plot.margin = margin(0, 0, 0, 0, "mm")) + 
+  guides(fill = guide_colourbar(title.position = "top", title.hjust = 0.5))
+
+g3 <- ggplot() +
+  geom_spatraster(data = trim(subset(g_means, nms)) * 100) +
+  scale_fill_grass_c(
+    expression(atop(Connectivity, "(Geometric mean 10"^-2*")")), 
+    palette = "inferno", 
+    na.value = "transparent",
+    labels = scales::label_number(accuracy = 1)) +
+  geom_sf(data = col, color = "black", fill = "transparent", 
+          linewidth = 0.4) +
+  theme_void() +
+  theme(legend.position = "bottom",
+        legend.key.width = unit(0.7, "cm"),
+        legend.key.height = unit(0.2, "cm"),
+        legend.text = element_text(size = 10),
+        legend.title = element_text(size = 10),
+        plot.margin = margin(0, 0, 0, 0, "mm")) + 
+  guides(fill = guide_colourbar(title.position = "top", title.hjust = 0.5))
+
+g4 <- ggplot() +
+  geom_spatraster(data = trim(subset(sums, nms)) / 10) +
+  scale_fill_grass_c(
+    expression(atop(Connectivity, "(Sum 10"^1*")")), 
+    palette = "inferno", 
+    na.value = "transparent",
+    labels = scales::label_number(accuracy = 1)) +
+  geom_sf(data = col, color = "black", fill = "transparent", 
+          linewidth = 0.4) +
+  theme_void() +
+  theme(legend.position = "bottom",
+        legend.key.width = unit(0.7, "cm"),
+        legend.key.height = unit(0.2, "cm"),
+        legend.text = element_text(size = 10),
+        legend.title = element_text(size = 10),
+        plot.margin = margin(0, 0, 0, 0, "mm")) + 
+  guides(fill = guide_colourbar(title.position = "top", title.hjust = 0.5))
+
+ggarrange(g1, g2, g3, g4, nrow = 1, labels = letters[1:4],
+          font.label = list(size = 12, face = "bold"))
+
+ggsave(file.path(fig_dir, "Figure4_ensemble.png"),
+       width = 6.5, height = 3.5, dpi = 300, bg = "white")
+
+#### Figure 5 and Ss ####
+## Figure Ss
+### Continuous maps
+# Re-order the names
+nms <- names(a_means)
+nms <- c(nms[str_detect(nms, "ssp126")], 
+         nms[str_detect(nms, "ssp370")], 
+         nms[str_detect(nms, "ssp585")])
+
+items <- list("a_mean" = a_means, "g_mean" = g_means, "sum" = sums)
+
+for (i in names(items)){
+  lyrs <- trim(subset(items[[i]], nms))
+  names(lyrs) <- letters[1:nlyr(lyrs)]
+  
+  if (i == "a_mean"){
+    label <- "Connectivity (Arithmetic mean)"
+    acc <- 0.01
+  } else if (i == "g_mean"){
+    label <- "Connectivity (Geometric mean)"
+    acc <- 0.01
+  } else{
+    label <- "Connectivity (Sum)"
+    acc <- 1
+  }
+  
+  ggplot() +
+    geom_spatraster(data = lyrs) +
+    scale_fill_grass_c(
+      label, palette = "inferno", 
+      na.value = "transparent",
+      labels = scales::label_number(accuracy = acc)) +
+    facet_wrap(~lyr, ncol = 4, nrow = 3, strip.position = "left") +
+    geom_sf(data = col, color = "black", fill = "transparent", 
+            linewidth = 0.4) +
+    theme_void() +
+    theme(legend.position = "bottom",
+          legend.key.width = unit(2, "cm"),
+          legend.key.height = unit(0.2, "cm"),
+          strip.text = element_text(
+            size = 12, face = "bold", vjust = 0.9, hjust = 1),
+          legend.text = element_text(size = 12),
+          legend.title = element_text(size = 12),
+          panel.spacing = unit(0, "lines")) + 
+    guides(fill = guide_colourbar(title.position = "top", title.hjust = 0.5))
+  
+  ggsave(file.path(fig_dir, sprintf("Figure_s_%s.png", i)),
+         width = 6.5, height = 7.5, dpi = 300, bg = "white")
+}
+
+### Categorical maps
+typology_dir <- file.path(root_dir, "results/classification")
 classes <- read.csv(file.path(typology_dir, "connectivity_typology.csv"))
 
 colors <- c("#9bc1bc", "#127475",
             "#f6ae2d", "#f26419", "#f5dfbb")
 
+items <- c("a_mean", "g_mean", "sum")
+for (item in items){
+  fnames <- list.files(
+    typology_dir, pattern = sprintf("%s.tif$", item), full.names = TRUE)
+  lyrs <- rast(fnames)
+  names(lyrs) <- str_extract(basename(fnames), "[0-9]{4}-[0-9]{4}_ssp[0-9]{3}")
+  lyrs <- trim(subset(lyrs, nms))
+  
+  levels(lyrs) <- lapply(1:nlyr(lyrs), function(x) classes[, c("ID", "name")]) 
+  names(lyrs) <- letters[1:nlyr(lyrs)]
+  
+  ggplot() +
+    geom_spatraster(data = lyrs, na.rm = TRUE) +
+    scale_fill_manual(
+      name = "Connectivity type", values = colors, 
+      breaks = c(levels(lyrs[[1]])[[1]]$name[-1], "Background"),
+      na.translate = FALSE) +
+    facet_wrap(~lyr, ncol = 4, nrow = 3, strip.position = "left") +
+    geom_sf(data = col, color = "black", fill = "transparent", 
+            linewidth = 0.4) +
+    theme_void() +
+    theme(legend.position = "bottom",
+          strip.text = element_text(
+            size = 12, face = "bold", vjust = 0.9, hjust = 1),
+          legend.text = element_text(size = 12),
+          legend.title = element_text(size = 12, face = "bold"),
+          panel.spacing = unit(0, "lines")) + 
+    guides(fill = guide_legend(
+      title.position = "top", title.hjust = 0.5, nrow = 2))
+  
+  ggsave(file.path(fig_dir, sprintf("Figure_s_types_%s.png", item)),
+         width = 6.5, height = 7.5, dpi = 300, bg = "white")
+}
+
+## Table Ss
 # Check area numbers
-areas <- lapply(names(lyrs), function(nm){
-  zonal(cellSize(lyrs[[nm]], unit = "km"), 
-        lyrs[[nm]], fun = "sum") %>% data.frame() %>% 
-    arrange(names(.)[1]) %>% 
-    select(area) %>% mutate(area = area / sum(area) * 100) %>% 
-    rename({{nm}} := "area")
-}) %>% bind_cols() %>% 
-  mutate(type = levels(lyrs[[1]])[[1]] %>% 
-           arrange(value) %>% pull(class), .before = 1)
+items <- c("a_mean", "g_mean", "sum")
+areas <- lapply(items, function(item){
+  fnames <- list.files(
+    typology_dir, pattern = sprintf("%s.tif$", item), full.names = TRUE)
+  lyrs <- rast(fnames)
+  names(lyrs) <- str_extract(basename(fnames), "[0-9]{4}-[0-9]{4}_ssp[0-9]{3}")
+  lyrs <- trim(subset(lyrs, nms))
+  
+  lapply(names(lyrs), function(nm){
+    zonal(cellSize(lyrs[[nm]], unit = "km"), 
+          lyrs[[nm]], fun = "sum") %>% data.frame() %>% 
+      arrange(names(.)[1]) %>% 
+      select(area) %>% mutate(area = area / sum(area) * 100) %>% 
+      rename({{nm}} := "area")
+  }) %>% bind_cols() %>% 
+    mutate(type = levels(lyrs[[1]])[[1]] %>% 
+             arrange(value) %>% pull(class), .before = 1) %>% 
+    mutate(method = item, .before = 1)
+}) %>% bind_rows()
 
+areas <- areas %>% 
+  mutate(type = factor(
+    type, levels = c("F1", "F2", "I1", "I2", "Background"),
+    labels = c("Facilitative area", "Highly facilitative area",
+               "Impeded area", "Highly impeded area", "Background"))) %>% 
+  arrange(method, type)
+  
+write.csv(areas, file.path(fig_dir, "areas_classes.csv"), row.names = FALSE)
+
+## Figure 5.
 # Plot
-nms <- names(lyrs)
-dat <- subset(lyrs, nms[str_detect(nms, "ssp126")])
-levels(dat) <- lapply(1:nlyr(dat), function(x) classes[, c("ID", "name")]) 
-names(dat) <- letters[9:(8 + nlyr(dat))]
+items <- c("a_mean", "g_mean", "sum")
 
-g2 <- ggplot() +
-  geom_spatraster(data = dat, na.rm = TRUE) +
+fig_list <- lapply(items, function(item){
+  fnames <- list.files(
+    typology_dir, pattern = sprintf("ssp585_%s.tif$", item), full.names = TRUE)
+  lyrs <- rast(fnames[c(1, 4)])
+  levels(lyrs) <- lapply(1:nlyr(lyrs), function(x) classes[, c("ID", "name")])
+  names(lyrs) <- str_extract(
+    basename(fnames[c(1, 4)]), "[0-9]{4}-[0-9]{4}")
+  
+  # Get the stable classes
+  msk <- mask(lyrs[[1]], lyrs[[1]] == lyrs[[2]], 
+              maskvalues = 0, updatevalue = NA)
+  msk[msk == 0] <- NA; msk <- patch_clean(msk); msk[msk == 0] <- NA
+  msk <- as.polygons(msk) %>% st_as_sf()
+  
+  g1 <- ggplot() +
+    geom_spatraster(data = lyrs[[1]], na.rm = TRUE) +
+    scale_fill_manual(
+      name = "Connectivity type", values = colors, 
+      breaks = c(levels(lyrs[[1]])[[1]]$name[-1], "Background"),
+      na.translate = FALSE) +
+    labs(caption = names(lyrs[[1]])) +
+    geom_sf_pattern(
+      data = msk,
+      fill = NA,
+      color = NA, 
+      pattern = "crosshatch",
+      pattern_colour = "black",
+      pattern_fill = "black", 
+      pattern_spacing = 0.01, 
+      pattern_angle = 45,
+      pattern_size = 0.01) +
+    geom_sf(data = col, color = "black", fill = "transparent", 
+            linewidth = 0.4) +
+    theme_void() +
+    theme(legend.position = "none",
+          panel.spacing = unit(0, "lines"),
+          plot.caption = element_text(
+            hjust = 0.15,
+            vjust = 20,
+            size = 10),
+          plot.title = element_text(color = "transparent"))
+  
+  g2 <- ggplot() +
+    geom_spatraster(data = lyrs[[2]], na.rm = TRUE) +
+    scale_fill_manual(
+      name = "Connectivity type", values = colors, 
+      breaks = c(levels(lyrs[[1]])[[1]]$name[-1], "Background"),
+      na.translate = FALSE) +
+    labs(caption = names(lyrs[[2]])) +
+    geom_sf_pattern(
+      data = msk,
+      fill = NA,
+      color = NA, 
+      pattern = "crosshatch",
+      pattern_colour = "black",
+      pattern_fill = "black", 
+      pattern_spacing = 0.01, 
+      pattern_angle = 45,
+      pattern_size = 0.01) +
+    geom_sf(data = col, color = "black", fill = "transparent", 
+            linewidth = 0.4) +
+    theme_void() +
+    theme(legend.position = "none",
+          panel.spacing = unit(0, "lines"),
+          plot.caption = element_text(
+            hjust = 0.15,
+            vjust = 20,
+            size = 10),
+          plot.title = element_text(color = "transparent"))
+  
+  ggarrange(g1, NULL, g2, nrow = 3, heights = c(1, -0.1, 1))
+})
+
+# Make the legend
+legend <- ggplot() +
+  geom_spatraster(data = lyrs, na.rm = TRUE) +
   scale_fill_manual(
-    name = "Connectivity type", values = colors, 
-    breaks = c(levels(dat[[1]])[[1]]$name[-1], "Background"),
-    na.translate = FALSE) +
-  facet_wrap(~lyr, ncol = 4, nrow = 1, strip.position = "left") +
-  geom_sf(data = col, color = "black", fill = "transparent", 
-          linewidth = 0.4) +
+    name = "Connectivity type",
+    values = colors,
+    breaks = c(levels(lyrs[[1]])[[1]]$name[-1], "Background"),
+    na.translate = FALSE
+  ) +
+  facet_wrap(~ lyr, ncol = 4, nrow = 3) +
+  geom_sf_pattern(
+    data = col,
+    aes(pattern = "Overlay"),
+    fill = NA,
+    color = NA,
+    pattern_colour = "black",
+    pattern_fill = "black",
+    pattern_spacing = 0.01,
+    pattern_angle = 45,
+    pattern_size = 0.01,
+    inherit.aes = FALSE,
+    show.legend = TRUE
+  ) +
+  scale_pattern_manual(name = "Stable area",
+                       values = c("Overlay" = "crosshatch")) +
   theme_void() +
-  theme(legend.position = "bottom",
-        strip.text = element_text(
-          size = 12, face = "bold", vjust = 0.9, hjust = 1),
-        legend.text = element_text(size = 12),
-        legend.title = element_text(size = 12, face = "bold"),
-        panel.spacing = unit(0, "lines")) + 
-  guides(fill = guide_legend(
-    title.position = "top", title.hjust = 0.5, nrow = 2))
+  theme(
+    legend.position = "bottom",
+    strip.text = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 12),
+    legend.title = element_text(size = 12, face = "bold"),
+    panel.spacing = unit(0, "lines")
+  ) +
+  guides(
+    fill = guide_legend(
+      title.position = "top",
+      title.hjust = 0.5,
+      nrow = 2,
+      override.aes = list(
+        pattern = "none",
+        pattern_colour = NA,
+        pattern_fill = NA
+      )
+    ),
+    pattern = guide_legend(title.position = "top", title.hjust = 0.5)
+  )
 
-# ggsave(file.path(fig_dir, "Figure5_conn_types.png"),
-#        width = 6.5, height = 3.2, dpi = 300, bg = "white")
+legend <- get_legend(legend)
 
-ggarrange(g1, g2, ncol = 1, nrow = 2, heights = c(5.3, 3.2))
-
-ggsave(file.path(fig_dir, "Figure4_conn_all.png"),
-       width = 6.5, height = 8.5, dpi = 300, bg = "white")
-
-dat <- subset(lyrs, c(nms[str_detect(nms, "ssp370")], 
-                      nms[str_detect(nms, "ssp585")]))
-levels(dat) <- lapply(1:nlyr(dat), function(x) classes[, c("ID", "name")])
-names(dat) <- letters[1:nlyr(dat)]
-
-ggplot() +
-  geom_spatraster(data = dat, na.rm = TRUE) +
-  scale_fill_manual(
-    name = "Connectivity type", values = colors, 
-    breaks = c(levels(dat[[1]])[[1]]$name[-1], "Background"),
-    na.translate = FALSE) +
-  facet_wrap(~lyr, ncol = 4, nrow = 2, strip.position = "left") +
-  geom_sf(data = col, color = "black", fill = "transparent", 
-          linewidth = 0.4) +
-  theme_void() +
-  theme(legend.position = "bottom",
-        strip.text = element_text(
-          size = 12, face = "bold", vjust = 0.9, hjust = 1),
-        legend.text = element_text(size = 12),
-        legend.title = element_text(size = 12, face = "bold"),
-        panel.spacing = unit(0, "lines")) + 
-  guides(fill = guide_legend(
-    title.position = "top", title.hjust = 0.5, nrow = 2))
+g <- ggarrange(plotlist = fig_list, ncol = 3, 
+          labels = c("a (Arithmetic mean)", "b (Geometric mean)", "c (Sum)"), 
+          label.x = 0.5, label.y = 1, hjust = 0.5, vjust = 1,
+          font.label = list(size = 12))
+ggarrange(g, NULL, legend, nrow = 3, heights = c(6.2, -0.2, 0.7))
 
 ggsave(file.path(fig_dir, "Figure_s_conn_types_simple.png"),
-       width = 6.5, height = 5.5, dpi = 300, bg = "white")
+       width = 6.5, height = 7, dpi = 300, bg = "white")
 
 #### Figure S1 ####
 sps <- list.files(file.path(data_dir, "mamiferos"))

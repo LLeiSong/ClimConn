@@ -30,3 +30,37 @@ patch_clean <- function(rst){
   
   rst
 }
+
+# The function to calculate geometric mean
+geom_m <- function(v){
+  v[ v <= 0] <- 1e-6
+  exp(mean(log(v), na.rm = TRUE))
+}
+
+# The function to get effective mask
+f_mask <- function(lyr){
+  vals <- values(lyr)
+  vals_pos <- vals[vals > 0]  # ignore exact zeros
+  
+  # if everything is zero, bail out
+  if (length(vals_pos) > 0) {
+    vals_sorted <- sort(vals_pos)
+    cum_sum <- cumsum(vals_sorted) / sum(vals_sorted)
+    
+    # choose threshold so that values below 
+    # contribute at most 1% of total connectivity
+    idx <- which(cum_sum > 0.01)[1] 
+    Tmin <- vals_sorted[idx]
+    
+    # optional safety: don't let Tmin be absurdly small
+    Tmin <- max(Tmin, 1e-6)
+    
+    # make an "effective" connectivity raster that ignores near-zero junk
+    lyr_eff <- lyr
+    lyr_eff[lyr_eff < Tmin] <- NA
+  } else {
+    lyr_eff <- lyr
+  }
+  
+  lyr_eff
+}

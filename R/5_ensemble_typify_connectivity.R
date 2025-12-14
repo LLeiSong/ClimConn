@@ -95,11 +95,11 @@ conn_lyrs <- do.call(c, lapply(years, function(yr){
 }))
 
 # With a buffer
-writeRaster(conn_lyrs, file.path(result_cmp, "conn_lyrs.tif"),
+writeRaster(conn_lyrs, file.path(result_cmp, "conn_lyrs_a_mean.tif"),
             overwrite = TRUE)
 
 # Start the burning
-types <- c("mean", "max", "sum", "sd_mean", "sd_sum")
+types <- c("max", "sum", "a_mean", "g_mean")
 
 for (type in types){
   message(type)
@@ -113,7 +113,7 @@ for (type in types){
           curmap <- crop(curmap, template)
           if (global(curmap, sum, na.rm = TRUE)[[1]] != 0 |
               is.nan(global(curmap, sum, na.rm = TRUE)[[1]])){
-            if (str_detect(type, "sd")){
+            if (type != "max"){
               curmap <- stretch(curmap, minv = 0, maxv = 1)
             }
             terra::extend(curmap, ext(template), fill = NA)
@@ -125,9 +125,11 @@ for (type in types){
         lyrs <- do.call(c, lyrs)
       }
       
-      if (str_detect(type, "mean")){
+      if (type == "a_mean"){
         mask(mean(lyrs, na.rm = TRUE), col %>% st_transform(crs_analysis))
-      } else if (str_detect(type, "max")){
+      } else if (type == "g_mean"){
+        mask(app(lyrs, geom_m), col %>% st_transform(crs_analysis))
+      } else if (type == "max"){
         mask(max(lyrs, na.rm = TRUE), col %>% st_transform(crs_analysis))
       } else {
         mask(sum(lyrs, na.rm = TRUE), col %>% st_transform(crs_analysis))
@@ -152,10 +154,11 @@ for (type in types){
     # STEP 0. Sinks and plateaus
     conn_file <- file.path(tempdir(), "conn.tif")
     conn_rev_file <- file.path(tempdir(), "conn_rev.tif")
-    sink_file <- file.path(tempdir(), "sink.tif")
-    peak_file <- file.path(tempdir(), "peak.tif")
     writeRaster(lyr, conn_file)
     writeRaster(1 - lyr, conn_rev_file)
+    
+    sink_file <- file.path(tempdir(), "sink.tif")
+    peak_file <- file.path(tempdir(), "peak.tif")
     wbt_sink(conn_file, sink_file)
     wbt_sink(conn_rev_file, peak_file)
     
@@ -172,6 +175,7 @@ for (type in types){
     top_all <- lyr >= quantile(values(lyr), 0.9, na.rm = TRUE)
     top_all <- patch_clean(top_all)
     top <- top_all * peaks * 10 + peaks
+    top <- mask(top, f_mask(lyr), updatevalue = 0)
     
     # STEP 2. lowlands
     low_all <- lyr <= quantile(values(lyr), 0.1, na.rm = TRUE)
