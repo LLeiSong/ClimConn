@@ -1,9 +1,9 @@
 # ClimConn
-Climate adaptive habitat connectivity of mammal speicies in Colombia.
+Climate adaptive habitat connectivity of mammal species in Colombia.
 
 ## Overview
 
-This study uses SHapley Additive exPlanations (SHAP) to assess how climate and land cover drivers influence future mammal distributions across different global change scenarios. We quantify both directional changes (favoring/disfavoring turnovers) and gradual changes (favorability shifts) to evaluate species-specific spatial risks and opportunities under global change.
+This study uses BioModelos SDMs and Omniscape to model the climate adaptive connectivity for examined mammal species in Colombia.
 
 The repository includes:
 
