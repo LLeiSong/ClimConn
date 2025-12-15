@@ -43,7 +43,7 @@ Other folders (`Env/`, `dispersal/species_dispersal_rate.csv`,
 
 ## Typify connectivity
 
-1. Run `5_ensemble_typify_connectivity.R` to ensemble connectivity layers and typify based on hydrological and terrain analysis.
+1. Run `5_ensemble_typify_connectivity.R` to ensemble connectivity layers and typify based on hydrological analysis.
 
 ## Other functions
 
