@@ -31,7 +31,7 @@
 #   Figure3_block_radius.png
 #   Figure4_conn_all.png
 #   Figure_s_conn.png
-#   Figure5_conn_types.png (optional, commented in code)
+#   Figure5_conn_types.png
 #   Figure_s_conn_types_simple.png
 #   Figure_s_model_eval.png
 #   Figure_s_species.png
@@ -56,6 +56,9 @@ library(stringr)
 library(patchwork)
 library(ggsankey)
 library(ggpattern)
+library(elevatr)
+library(rnaturalearth)
+library(ggnewscale)
 sf_use_s2(FALSE)
 
 # Setting
@@ -97,6 +100,7 @@ conns <- rast(file.path(result_dir, "conn_lyrs_a_mean.tif"))
 col <- st_read(file.path(data_dir, "colombia.geojson")) %>% 
   st_transform(st_crs(conns))
 conns <- conns %>% crop(col) %>% mask(col)
+aoi <- st_read(file.path(result_dir, "fig3_aoi.geojson")) %>% st_buffer(0.3)
 
 conns_to_cmp <- rast(file.path(result_cmp, "conn_lyrs_a_mean.tif")) %>% 
   trim() %>% crop(col) %>% mask(col)
@@ -115,6 +119,8 @@ ggplot() +
     na.value = "transparent",
     labels = scales::label_number(accuracy = 0.01)) +
   facet_wrap(~lyr, ncol = 4, nrow = 2, strip.position = "left") +
+  geom_sf(data = aoi, color = "white", fill = "transparent", 
+          linewidth = 0.3) +
   geom_sf(data = col, color = "black", fill = "transparent", 
           linewidth = 0.4) +
   theme_void() +
@@ -129,7 +135,7 @@ ggplot() +
   guides(fill = guide_colourbar(title.position = "top", title.hjust = 0.5))
 
 ggsave(file.path(fig_dir, "Figure3_compare.png"),
-       width = 6.5, height = 3, dpi = 300, bg = "white")
+       width = 6.5, height = 3.5, dpi = 300, bg = "white")
 
 #### Figure 4 ####
 # Load data
@@ -360,6 +366,11 @@ write.csv(areas, file.path(fig_dir, "areas_classes.csv"), row.names = FALSE)
 
 ## Figure 5.
 # Plot
+cont_maps <- list(
+  "a_mean" = subset(a_means, names(a_means)[str_detect(names(a_means), "ssp585")][c(1, 4)]), 
+  "g_mean" = subset(g_means, names(g_means)[str_detect(names(g_means), "ssp585")][c(1, 4)]), 
+  "sum" = subset(sums, names(sums)[str_detect(names(sums), "ssp585")][c(1, 4)]))
+
 items <- c("a_mean", "g_mean", "sum")
 
 fig_list <- lapply(items, function(item){
@@ -375,6 +386,38 @@ fig_list <- lapply(items, function(item){
               maskvalues = 0, updatevalue = NA)
   msk[msk == 0] <- NA; msk <- patch_clean(msk); msk[msk == 0] <- NA
   msk <- as.polygons(msk) %>% st_as_sf()
+  
+  cont_lyrs <- cont_maps[[item]]
+  
+  if (item == "a_mean"){
+    acc <- 10
+    n <- c(0, 1, 2)
+  } else if (item == "g_mean"){
+    acc <- 100
+    n <- c(0.001, 1, 2)
+  } else{
+    acc <- 0.1
+    n <- c(0, 2, 4)
+  }
+  
+  g10 <- ggplot() +
+    geom_spatraster(data = cont_lyrs[[1]] * acc) +
+    scale_fill_grass_c(
+      "", palette = "inferno", 
+      na.value = "transparent", 
+      breaks = n,
+      labels = scales::label_number(accuracy = 1)) +
+    geom_sf(data = col, color = "black", fill = "transparent", 
+            linewidth = 0.4) +
+    ggtitle(sprintf("Conn.\u00d7%s", acc)) + theme_void() +
+    theme(legend.position = "right",
+          legend.key.width = unit(0.1, "cm"),
+          legend.key.height = unit(0.25, "cm"),
+          legend.spacing = unit(0, "lines"),
+          legend.text = element_text(size = 9),
+          plot.title = element_text(size = 9, hjust = 1),
+          plot.title.position = "plot") +
+    guides(fill = guide_colourbar(title.position = "right"))
   
   g1 <- ggplot() +
     geom_spatraster(data = lyrs[[1]], na.rm = TRUE) +
@@ -404,6 +447,30 @@ fig_list <- lapply(items, function(item){
             size = 10),
           plot.title = element_text(color = "transparent"))
   
+  # Combine the plots
+  g1 <- g1 + 
+    inset_element(g10, left = 0.55, bottom = 0.61, right = 1, top = 1,
+                  align_to = 'panel')
+  
+  g20 <- ggplot() +
+    geom_spatraster(data = cont_lyrs[[2]] * acc) +
+    scale_fill_grass_c(
+      "", palette = "inferno", 
+      na.value = "transparent", 
+      breaks = n,
+      labels = scales::label_number(accuracy = 1)) +
+    geom_sf(data = col, color = "black", fill = "transparent", 
+            linewidth = 0.4) +
+    ggtitle(sprintf("Conn.\u00d7%s", acc)) + theme_void() +
+    theme(legend.position = "right",
+          legend.key.width = unit(0.1, "cm"),
+          legend.key.height = unit(0.25, "cm"),
+          legend.spacing = unit(0, "lines"),
+          legend.text = element_text(size = 9),
+          plot.title = element_text(size = 9, hjust = 1),
+          plot.title.position = "plot") +
+    guides(fill = guide_colourbar(title.position = "right"))
+  
   g2 <- ggplot() +
     geom_spatraster(data = lyrs[[2]], na.rm = TRUE) +
     scale_fill_manual(
@@ -431,6 +498,11 @@ fig_list <- lapply(items, function(item){
             vjust = 20,
             size = 10),
           plot.title = element_text(color = "transparent"))
+  
+  # Combine the plots
+  g2 <- g2 + 
+    inset_element(g20, left = 0.55, bottom = 0.61, right = 1, top = 1,
+                  align_to = 'panel')
   
   ggarrange(g1, NULL, g2, nrow = 3, heights = c(1, -0.1, 1))
 })
@@ -490,10 +562,68 @@ g <- ggarrange(plotlist = fig_list, ncol = 3,
           font.label = list(size = 12))
 ggarrange(g, NULL, legend, nrow = 3, heights = c(6.2, -0.2, 0.7))
 
-ggsave(file.path(fig_dir, "Figure_s_conn_types_simple.png"),
+ggsave(file.path(fig_dir, "Figure5_conn_types_simple.png"),
        width = 6.5, height = 7, dpi = 300, bg = "white")
 
 #### Figure S1 ####
+# Colombia geography map
+# 1. Get Colombia boundary
+colombia <- ne_countries(scale = "medium", country = "colombia", returnclass = "sf")
+rivers_global <- ne_download(
+  scale = 10, type = "rivers_lake_centerlines", 
+  category = "physical", returnclass = "sf")
+rivers <- st_intersection(rivers_global, colombia)
+
+# 2. Fetch Elevation (DEM)
+# z = 6 is a good balance between detail and speed; increase for higher resolution
+elev <- get_elev_raster(colombia, z = 6, clip = "locations")
+elev <- rast(elev)
+names(elev) <- "elevation"
+
+# Define a rough line for the Andes through Colombia
+ranges <- data.frame(
+  name = c("Cordillera Occidental", "Cordillera Central", "Cordillera Oriental"),
+  x = c(-77.2, -75.8, -74),
+  y = c(3.0, 4.5, 5),
+  angle = c(68, 68, 55))
+
+basins <- data.frame(
+  name = c("Orinoco Basin", "Amazon Basin"),
+  x = c(-70, -72),
+  y = c(5, 0),
+  angle = c(25, 15))
+
+# 2. Calculate Hillshade
+slope <- terrain(elev, "slope", unit = "radians")
+aspect <- terrain(elev, "aspect", unit = "radians")
+hillshade <- shade(slope, aspect, angle = 45, direction = 315)
+
+# 3. Plot with tidyterra
+ggplot() +
+  geom_spatraster(data = hillshade) +
+  scale_fill_gradient(
+    low = "black", high = "white", guide = "none", na.value = NA) +
+  new_scale_fill() +
+  geom_spatraster(data = elev, aes(fill = elevation), alpha = 0.8) +
+  scale_fill_hypso_tint_c(palette = "dem_poster", na.value = NA) +
+  labs(fill = "Elevation (m)") +
+  geom_sf(data = rivers, color = "#5dade2", linewidth = 0.3) +
+  geom_sf(data = colombia, fill = "transparent", 
+          color = "black", linewidth = 0.6) +
+  geom_text(data = ranges, aes(x = x, y = y, label = name, angle = angle),
+            fontface = "bold", size = 4, color = "black") +
+  geom_text(data = basins, aes(x = x, y = y, label = name, angle = angle),
+            size = 6, color = "white") +
+  theme_void() +
+  theme(text = element_text(size = 11),
+        legend.text = element_text(size = 11),
+        legend.title = element_text(size = 11)) +
+  coord_sf(expand = FALSE)
+
+ggsave(file.path(fig_dir, "Figure_s_col_geo.png"),
+       width = 6, height = 6, dpi = 500)
+
+#### Figure S2 ####
 sps <- list.files(file.path(data_dir, "mamiferos"))
 evals <- lapply(sps, function(sp){
   sp_dir <- file.path(data_dir, "mamiferos", sp)
@@ -529,7 +659,7 @@ ggarrange(g1, g2, nrow = 2, heights = c(6, 2), labels = c("a", "b"))
 ggsave(file.path(fig_dir, "Figure_s_model_eval.png"),
        width = 4, height = 4, dpi = 500, bg = "white")
 
-#### Figure S2 ####
+#### Figure S3 ####
 # Species loss
 years <- c("1970-2000", "2021-2040", 
            "2041-2060", "2061-2080", "2081-2100")
@@ -607,7 +737,7 @@ ggarrange(g2, g1, ncol = 2, labels = c("a", "b"), widths = c(1, 2))
 ggsave(file.path(fig_dir, "Figure_s_species.png"),
        width = 6, height = 3, dpi = 500, bg = "white")
 
-#### Figure S3 ####
+#### Figure S4 ####
 dispersal_rate <- read.csv(file.path(
   data_dir, "dispersal/species_dispersal_rate.csv"))
 

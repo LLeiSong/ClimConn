@@ -8,4 +8,4 @@ data/mamiferos
 data/Env
 data/IUCN
 results
-!results/*.png
+!results/figures/*
