@@ -38,7 +38,7 @@ The repository includes:
 
 Please check documents: [docs/biomodelos_connec.Rmd](docs/biomodelos_connec.Rmd) to set up the environment.
 
-*NOTE:* due to some updates in Omniscape, users need to install our [customized version](https://github.com/LLeiSong/Omniscape.jl).
+*NOTE:* due to some updates in Omniscape, users need to install our [customized version](https://github.com/LLeiSong/Omniscape.jl), which has been fully tested with Julia 1.11.3.
 
 ## Session info
 
