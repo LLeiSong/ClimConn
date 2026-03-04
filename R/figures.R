@@ -420,7 +420,10 @@ fig_list <- lapply(items, function(item){
     guides(fill = guide_colourbar(title.position = "right"))
   
   g1 <- ggplot() +
-    geom_spatraster(data = lyrs[[1]], na.rm = TRUE) +
+    geom_spatraster(data = hill, show.legend = FALSE) +
+    scale_fill_gradient(low = "black", high = "white", na.value = NA) +
+    new_scale_fill() + # From 'ggnewscale' package
+    geom_spatraster(data = lyrs[[1]], na.rm = TRUE, alpha = 0.6) +
     scale_fill_manual(
       name = "Connectivity type", values = colors, 
       breaks = c(levels(lyrs[[1]])[[1]]$name[-1], "Background"),
@@ -472,7 +475,10 @@ fig_list <- lapply(items, function(item){
     guides(fill = guide_colourbar(title.position = "right"))
   
   g2 <- ggplot() +
-    geom_spatraster(data = lyrs[[2]], na.rm = TRUE) +
+    geom_spatraster(data = hill, show.legend = FALSE) +
+    scale_fill_gradient(low = "black", high = "white", na.value = NA) +
+    new_scale_fill() + # From 'ggnewscale' package
+    geom_spatraster(data = lyrs[[2]], na.rm = TRUE, alpha = 0.6) +
     scale_fill_manual(
       name = "Connectivity type", values = colors, 
       breaks = c(levels(lyrs[[1]])[[1]]$name[-1], "Background"),
@@ -506,6 +512,7 @@ fig_list <- lapply(items, function(item){
   
   ggarrange(g1, NULL, g2, nrow = 3, heights = c(1, -0.1, 1))
 })
+
 
 # Make the legend
 legend <- ggplot() +
