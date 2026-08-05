@@ -22,8 +22,6 @@
 #   results/typology/conn_types_<year>_<ssp>.tif connectivity typology rasters
 #   results/typology/connectivity_typology.csv   class catalog (Background, F1, F2, I1, I2)
 #
-# Author: Lei Song <lei.song@rutgers.edu>
-# Last updated: 2025-11-21
 # ============================================================
 
 # Load libraries and functions

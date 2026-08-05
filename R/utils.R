@@ -15,8 +15,6 @@
 #     1 = retained (large) patches
 #     0 = background / removed small patches
 #
-# Author: Lei Song <lei.song@rutgers.edu>
-# Last updated: 2025-11-21
 # ============================================================
 
 # Clean tiny patches from a raster

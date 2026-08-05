@@ -38,12 +38,8 @@ The repository includes:
 
 Please check documents: [docs/biomodelos_connec.Rmd](docs/biomodelos_connec.Rmd) to set up the environment.
 
-*NOTE:* due to some updates in Omniscape, users need to install our [customized version](https://github.com/LLeiSong/Omniscape.jl), which has been fully tested with Julia 1.11.3.
+*NOTE:* due to some updates in Omniscape, users need to install our customized version, which has been fully tested with Julia 1.11.3.
 
 ## Session info
 
 All analyses were conducted in R. The full R session information, including package versions and system details, is saved in [session_info.txt](session_info.txt) for reproducibility.
-
-## Acknowledgement
-
-This work is supported by project “DISES: Decision Making for Land Use Planning under Future Climate Scenarios through Engaged Research via Co-Design” funded by a grant to A.E.F. from the U.S. National Science Foundation (award number: 2401273).

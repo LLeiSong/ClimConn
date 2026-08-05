@@ -7,5 +7,7 @@
 data/mamiferos
 data/Env
 data/IUCN
+data/mountains
 results
 !results/figures/*
+.positai

@@ -13,8 +13,6 @@
 #   data/species_info_mc.csv        species to check manually
 #   data/mammal_species_conn.rda    final species list for connectivity
 #
-# Author: Lei Song <lei.song@rutgers.edu>
-# Last updated: 2025-11-21
 # ============================================================
 
 # Load libraries

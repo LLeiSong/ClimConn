@@ -24,8 +24,6 @@
 # Outputs:
 #   results/omni/<scenario>/<sp>/...  Omniscape connectivity outputs (created by clim_connect)
 #
-# Author: Lei Song <lei.song@rutgers.edu>
-# Last updated: 2025-11-21
 # ============================================================
 
 # Load libraries

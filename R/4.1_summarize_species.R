@@ -19,8 +19,6 @@
 #   data/smr_species.csv          running table of species × SSP summary (append mode)
 #   data/smr_species_final.csv    full combined summary across all SSPs
 #
-# Author: Lei Song <lei.song@rutgers.edu>
-# Last updated: 2025-11-21
 # ============================================================
 
 # Load libraries

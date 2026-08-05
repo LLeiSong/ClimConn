@@ -20,8 +20,6 @@
 #   data/Env/G_variable/...         scenario-specific bio_*.asc layers
 #   data/mamiferos/*/M_variables/   per-species M-variable ASCII grids
 #
-# Author: Lei Song <lei.song@rutgers.edu>
-# Last updated: 2025-11-21
 # ============================================================
 
 # Load libraries

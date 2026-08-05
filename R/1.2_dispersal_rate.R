@@ -14,8 +14,6 @@
 # Output:
 #   data/dispersal/species_dispersal_rate.csv      species-level dispersal rates
 #
-# Author: Lei Song <lei.song@rutgers.edu>
-# Last updated: 2025-11-21
 # ============================================================
 
 # Load library and define dirs

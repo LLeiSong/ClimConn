@@ -37,8 +37,6 @@
 #   Figure_s_species.png
 #   Figure_s_dispersal.png
 #
-# Author: Lei Song <lei.song@rutgers.edu>
-# Last updated: 2025-11-21
 # ============================================================
 
 # Load libraries
@@ -102,6 +100,14 @@ col <- st_read(file.path(data_dir, "colombia.geojson")) %>%
 conns <- conns %>% crop(col) %>% mask(col)
 aoi <- st_read(file.path(result_dir, "fig3_aoi.geojson")) %>% st_buffer(0.3)
 
+mnts <- st_read("data/mountains/GMBA_Inventory_v2/GMBA_Inventory_v2.0_standard.shp")
+mnts <- mnts %>% filter(Level_02 == "Andes") %>% 
+  filter(MapName %in% c("Cordillera Occidental", "Cordillera Central", "Cordillera Oriental")) %>% 
+  group_by(MapName) %>% summarise(geometry = st_union(geometry))
+
+mnts <- st_intersection(mnts, colombia) %>% 
+  select(MapName) %>% fill_holes(1e13)
+
 conns_to_cmp <- rast(file.path(result_cmp, "conn_lyrs_a_mean.tif")) %>% 
   trim() %>% crop(col) %>% mask(col)
 
@@ -123,6 +129,8 @@ ggplot() +
           linewidth = 0.3) +
   geom_sf(data = col, color = "black", fill = "transparent", 
           linewidth = 0.4) +
+  geom_sf(data = mnts, color = "grey", fill = "transparent", 
+          linewidth = 0.2, aes(linetype = MapName), show.legend = FALSE) +
   theme_void() +
   theme(legend.position = "right",
         legend.key.width = unit(0.2, "cm"),
@@ -173,6 +181,8 @@ g1 <- ggplot() +
     labels = scales::label_number(accuracy = 0.1)) +
   geom_sf(data = col, color = "black", fill = "transparent", 
           linewidth = 0.4) +
+  geom_sf(data = mnts, color = "grey", fill = "transparent", 
+          linewidth = 0.2, aes(linetype = MapName), show.legend = FALSE) +
   theme_void() +
   theme(legend.position = "bottom",
         legend.key.width = unit(0.7, "cm"),
@@ -191,6 +201,8 @@ g2 <- ggplot() +
     labels = scales::label_number(accuracy = 1)) +
   geom_sf(data = col, color = "black", fill = "transparent", 
           linewidth = 0.4) +
+  geom_sf(data = mnts, color = "grey", fill = "transparent", 
+          linewidth = 0.2, aes(linetype = MapName), show.legend = FALSE) +
   theme_void() +
   theme(legend.position = "bottom",
         legend.key.width = unit(0.7, "cm"),
@@ -209,6 +221,8 @@ g3 <- ggplot() +
     labels = scales::label_number(accuracy = 1)) +
   geom_sf(data = col, color = "black", fill = "transparent", 
           linewidth = 0.4) +
+  geom_sf(data = mnts, color = "grey", fill = "transparent", 
+          linewidth = 0.2, aes(linetype = MapName), show.legend = FALSE) +
   theme_void() +
   theme(legend.position = "bottom",
         legend.key.width = unit(0.7, "cm"),
@@ -227,6 +241,8 @@ g4 <- ggplot() +
     labels = scales::label_number(accuracy = 1)) +
   geom_sf(data = col, color = "black", fill = "transparent", 
           linewidth = 0.4) +
+  geom_sf(data = mnts, color = "grey", fill = "transparent", 
+          linewidth = 0.2, aes(linetype = MapName), show.legend = FALSE) +
   theme_void() +
   theme(legend.position = "bottom",
         legend.key.width = unit(0.7, "cm"),
@@ -361,7 +377,7 @@ areas <- areas %>%
     labels = c("Facilitative area", "Highly facilitative area",
                "Impeded area", "Highly impeded area", "Background"))) %>% 
   arrange(method, type)
-  
+
 write.csv(areas, file.path(fig_dir, "areas_classes.csv"), row.names = FALSE)
 
 ## Figure 5.
@@ -564,9 +580,9 @@ legend <- ggplot() +
 legend <- get_legend(legend)
 
 g <- ggarrange(plotlist = fig_list, ncol = 3, 
-          labels = c("a (Arithmetic mean)", "b (Geometric mean)", "c (Sum)"), 
-          label.x = 0.5, label.y = 1, hjust = 0.5, vjust = 1,
-          font.label = list(size = 12))
+               labels = c("a (Arithmetic mean)", "b (Geometric mean)", "c (Sum)"), 
+               label.x = 0.5, label.y = 1, hjust = 0.5, vjust = 1,
+               font.label = list(size = 12))
 ggarrange(g, NULL, legend, nrow = 3, heights = c(6.2, -0.2, 0.7))
 
 ggsave(file.path(fig_dir, "Figure5_conn_types_simple.png"),
@@ -641,7 +657,7 @@ evals <- lapply(sps, function(sp){
   mutate(type = factor(type, levels = c("Training", "Test")))
 
 g1 <- ggplot(data = evals, 
-            aes(x = auc, after_stat(density), fill = type)) +
+             aes(x = auc, after_stat(density), fill = type)) +
   geom_density(alpha = 0.8) +
   xlab("AUC") +
   ylab("Density") +

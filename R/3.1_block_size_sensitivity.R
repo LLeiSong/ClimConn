@@ -24,8 +24,6 @@
 # is large, it will take forever to run. This script is to run a few example
 # species to detect a rule of thumb to select block size based on radius.
 #
-# Author: Lei Song <lei.song@rutgers.edu>
-# Last updated: 2025-11-21
 # ============================================================
 
 # Load libraries

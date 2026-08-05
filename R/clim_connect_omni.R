@@ -29,8 +29,6 @@
 #   work_dir/<sp>/<time_period>/cum_currmap.tif and other Omniscape products
 #   (created or skipped if already present).
 #
-# Author: Lei Song <lei.song@rutgers.edu>
-# Last updated: 2025-11-21
 # ============================================================
 
 # Load libraries

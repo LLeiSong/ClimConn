@@ -2,10 +2,6 @@
 title: "Climate adaptive habitat connectivity"
 description: |
   Using biomodelos as the base layers
-author:
-  - name: Lei Song
-    url: https://github.com/LLeiSong
-    affiliation: University of California, Santa Barbara
 output: 
   distill::distill_article:
     toc: true

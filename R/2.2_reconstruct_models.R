@@ -27,8 +27,6 @@
 # This script is constructed highly relying on 
 # https://github.com/PEM-Humboldt/biomodelos-sdm.git
 #
-# Author: Lei Song <lei.song@rutgers.edu>
-# Last updated: 2025-11-21
 # ============================================================
 
 # Load libraries

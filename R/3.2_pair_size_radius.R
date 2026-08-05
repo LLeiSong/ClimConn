@@ -16,8 +16,6 @@
 #   allow_min_radius.csv         min radius allowed per block_size at cor_target
 #   fitted_curves.csv            smoothed fitted curves over radius_size
 #
-# Author: Lei Song <lei.song@rutgers.edu>
-# Last updated: 2025-11-21
 # ============================================================
 
 # Loading parameters

@@ -20,8 +20,6 @@
 #   data/species_miss.csv                  union of all missing species
 #   data/suit_cors.csv                     correlation of original vs reconstructed suitability
 #
-# Author: Lei Song <lei.song@rutgers.edu>
-# Last updated: 2025-11-21
 # ============================================================
 
 # Load libraries
